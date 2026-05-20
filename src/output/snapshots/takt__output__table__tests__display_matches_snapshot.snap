@@ -1,0 +1,7 @@
+---
+source: src/output/table.rs
+expression: table.to_string()
+---
+ Concept  Scope    
+ Package  Registry 
+ Action   Project
