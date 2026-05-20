@@ -25,6 +25,10 @@ mod tests {
             format!("{}", muted("quiet").force_styling(true)).escape_debug(),
         );
 
-        insta::assert_snapshot!(snapshot);
+        insta::assert_snapshot!(snapshot, @r#"
+        title: \u{1b}[36m\u{1b}[1mTakt\u{1b}[0m
+        label: \u{1b}[35m\u{1b}[1mKind\u{1b}[0m
+        muted: \u{1b}[2mquiet\u{1b}[0m
+        "#);
     }
 }

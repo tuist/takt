@@ -55,6 +55,10 @@ mod tests {
         table.add_row(["Package", "Registry"]);
         table.add_row(["Action", "Project"]);
 
-        insta::assert_snapshot!(table.to_string());
+        insta::assert_snapshot!(table.to_string(), @r#"
+         Concept  Scope    
+         Package  Registry 
+         Action   Project
+        "#);
     }
 }
