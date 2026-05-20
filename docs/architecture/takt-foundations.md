@@ -61,6 +61,10 @@ The current Rust prototype focuses on two foundations:
 - `takt package init`, `takt action init`, and `takt workflow init` for starter
   manifests
 
+`takt package init` should also bootstrap project-local agent guidance the way
+`swamp repo init --tool codex` does: an `AGENTS.md` plus `.agents/skills/`
+files that teach an agent how to interact with that initialized package.
+
 The schema command exists because agent-facing tooling should be inspectable.
 Swamp does this with `swamp help ...`, and `mise` does something similar with
 its generated usage specification.

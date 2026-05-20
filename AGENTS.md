@@ -14,10 +14,6 @@ operations.
 4. Search for an existing package or capability before inventing a new one.
 5. If the CLI shape is unclear, inspect the current prototype with
    `cargo run -- schema all`.
-
-## Skills
-
-- `.agents/skills/takt-getting-started/SKILL.md`
-- `.agents/skills/takt-package/SKILL.md`
-- `.agents/skills/takt-action/SKILL.md`
-- `.agents/skills/takt-workflow/SKILL.md`
+6. Keep the generated agent bootstrap aligned with the CLI. `takt package init`
+   writes `AGENTS.md` and `.agents/skills/takt-*` into initialized projects
+   from the templates in `templates/bootstrap/`.

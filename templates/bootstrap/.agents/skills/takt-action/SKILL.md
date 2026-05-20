@@ -1,8 +1,8 @@
 ---
 name: takt-action
 description: >
-  Draft Takt action skill. Use when designing project-local configured uses
-  of capabilities, including default inputs, secret bindings, labels, and
+  Design or review Takt actions. Use when working on project-local configured
+  uses of capabilities, including defaults, secret bindings, labels, and
   runtime selection.
 ---
 
@@ -18,6 +18,12 @@ Actions are project-local configured uses of capabilities.
 - attach labels and ownership metadata
 - optionally choose a reviewed runtime profile
 
+## Review Flow
+
+1. Read the relevant file under `actions/`.
+2. Run `takt schema action`.
+3. Confirm the action is configuration, not implementation.
+
 ## Rules
 
 1. Workflows call actions, not capabilities.
@@ -25,16 +31,10 @@ Actions are project-local configured uses of capabilities.
 3. Runtime overrides should be rare and reviewable.
 4. Secret bindings should stay declarative.
 
-## Review Flow
-
-1. Read `docs/architecture/takt-foundations.md`.
-2. Inspect `cargo run -- schema action`.
-3. Confirm the action is configuration, not implementation.
-
 ## Current Command
 
-Use `cargo run -- action init <name> <capability>` to scaffold an action
-manifest, then edit the generated YAML.
+Use `takt action init <name> <capability>` to scaffold an action manifest, then
+edit the generated YAML.
 
 ## Smells
 

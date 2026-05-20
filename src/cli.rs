@@ -3,6 +3,7 @@ use crate::domain::{
 };
 use crate::output::style;
 use crate::output::table::TaktTable;
+use crate::scaffold::{ScaffoldFile, package_bootstrap_files, package_project_root};
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use color_eyre::eyre::{Result, bail};
 use schemars::schema_for;
@@ -161,8 +162,11 @@ struct PackageInitCommand {
 
 impl PackageInitCommand {
     fn run(self) -> Result<()> {
-        let manifest = PackageManifest::starter(self.name, self.description);
-        write_yaml_file(&manifest, &self.output, self.force, "package")
+        let project_root = package_project_root(&self.output);
+        let manifest = PackageManifest::starter(self.name.clone(), self.description);
+        let mut files = vec![yaml_scaffold_file(&manifest, self.output, "package")?];
+        files.extend(package_bootstrap_files(&project_root, &self.name));
+        write_scaffold_files(&files, self.force)
     }
 }
 
@@ -341,24 +345,43 @@ fn write_yaml_file<T>(value: &T, output: &Path, force: bool, label: &str) -> Res
 where
     T: Serialize,
 {
-    if output.exists() && !force {
-        bail!(
-            "{} already exists at {}. Re-run with --force to overwrite.",
-            label,
-            output.display()
-        );
-    }
+    let file = yaml_scaffold_file(value, output.to_path_buf(), label)?;
+    write_scaffold_files(&[file], force)
+}
 
-    if let Some(parent) = output.parent() {
-        if !parent.as_os_str().is_empty() {
-            fs::create_dir_all(parent)?;
+fn yaml_scaffold_file<T>(value: &T, output: PathBuf, label: &str) -> Result<ScaffoldFile>
+where
+    T: Serialize,
+{
+    Ok(ScaffoldFile::new(
+        output,
+        label,
+        serde_yaml::to_string(value)?,
+    ))
+}
+
+fn write_scaffold_files(files: &[ScaffoldFile], force: bool) -> Result<()> {
+    for file in files {
+        if file.path.exists() && !force {
+            bail!(
+                "{} already exists at {}. Re-run with --force to overwrite.",
+                file.label,
+                file.path.display()
+            );
         }
     }
 
-    let yaml = serde_yaml::to_string(value)?;
-    fs::write(output, yaml)?;
+    for file in files {
+        if let Some(parent) = file.path.parent() {
+            if !parent.as_os_str().is_empty() {
+                fs::create_dir_all(parent)?;
+            }
+        }
 
-    println!("{} {}", style::label("Wrote"), output.display());
+        fs::write(&file.path, &file.contents)?;
+        println!("{} {}", style::label("Wrote"), file.path.display());
+    }
+
     Ok(())
 }
 

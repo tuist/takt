@@ -1,8 +1,8 @@
 ---
 name: takt-workflow
 description: >
-  Draft Takt workflow skill. Use when designing orchestration, dependencies,
-  and step wiring across actions.
+  Design or review Takt workflows. Use when working on orchestration,
+  dependencies, and step wiring across actions.
 ---
 
 # Takt Workflow
@@ -16,6 +16,12 @@ Workflows compose actions into repeatable operations.
 - capture conditions and fan-out
 - produce runs and artifacts
 
+## Review Flow
+
+1. Read the relevant file under `workflows/`.
+2. Run `takt schema workflow`.
+3. Check that every step uses an action reference.
+
 ## Rules
 
 1. Workflows depend on actions only.
@@ -24,15 +30,9 @@ Workflows compose actions into repeatable operations.
    implicit environment mutation.
 4. Runtime concerns belong to capabilities and actions, not workflow steps.
 
-## Review Flow
-
-1. Read `docs/architecture/takt-foundations.md`.
-2. Inspect `cargo run -- schema workflow`.
-3. Check that every step uses an action reference.
-
 ## Current Command
 
-Use `cargo run -- workflow init <name> --uses <action>` to scaffold a workflow
+Use `takt workflow init <name> --uses <action>` to scaffold a workflow
 manifest, then edit the generated YAML.
 
 ## Smells
