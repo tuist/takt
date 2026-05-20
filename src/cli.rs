@@ -29,9 +29,6 @@ impl Cli {
             Command::Init(command) => command.run(),
             Command::Generate(command) => command.run(),
             Command::Schema(command) => command.run(),
-            Command::Package(command) => command.run(),
-            Command::Action(command) => command.run(),
-            Command::Workflow(command) => command.run(),
         }
     }
 }
@@ -47,12 +44,6 @@ enum Command {
     Generate(GenerateCommand),
     /// Emit machine-readable schemas for Takt domain objects
     Schema(SchemaCommand),
-    #[command(hide = true)]
-    Package(PackageCommand),
-    #[command(hide = true)]
-    Action(ActionCommand),
-    #[command(hide = true)]
-    Workflow(WorkflowCommand),
 }
 
 #[derive(Debug, Args)]
@@ -182,48 +173,6 @@ enum GenerateSubcommand {
 }
 
 #[derive(Debug, Args)]
-#[command(arg_required_else_help = true)]
-struct PackageCommand {
-    #[command(subcommand)]
-    command: PackageSubcommand,
-}
-
-impl PackageCommand {
-    fn run(self) -> Result<()> {
-        match self.command {
-            PackageSubcommand::Init(command) => command.run(),
-        }
-    }
-}
-
-#[derive(Debug, Subcommand)]
-enum PackageSubcommand {
-    /// Write a starter package manifest
-    Init(InitCommand),
-}
-
-#[derive(Debug, Args)]
-#[command(arg_required_else_help = true)]
-struct ActionCommand {
-    #[command(subcommand)]
-    command: ActionSubcommand,
-}
-
-impl ActionCommand {
-    fn run(self) -> Result<()> {
-        match self.command {
-            ActionSubcommand::Init(command) => command.run(),
-        }
-    }
-}
-
-#[derive(Debug, Subcommand)]
-enum ActionSubcommand {
-    /// Write a starter action manifest
-    Init(GenerateActionCommand),
-}
-
-#[derive(Debug, Args)]
 struct GenerateActionCommand {
     /// Action name
     name: String,
@@ -245,27 +194,6 @@ impl GenerateActionCommand {
         let action = ActionDefinition::starter(self.name, self.capability);
         write_yaml_file(&action, &output, self.force, "action")
     }
-}
-
-#[derive(Debug, Args)]
-#[command(arg_required_else_help = true)]
-struct WorkflowCommand {
-    #[command(subcommand)]
-    command: WorkflowSubcommand,
-}
-
-impl WorkflowCommand {
-    fn run(self) -> Result<()> {
-        match self.command {
-            WorkflowSubcommand::Init(command) => command.run(),
-        }
-    }
-}
-
-#[derive(Debug, Subcommand)]
-enum WorkflowSubcommand {
-    /// Write a starter workflow manifest
-    Init(GenerateWorkflowCommand),
 }
 
 #[derive(Debug, Args)]
