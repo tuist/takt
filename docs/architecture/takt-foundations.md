@@ -58,10 +58,10 @@ The current Rust prototype focuses on two foundations:
 
 - `takt concepts` for a stable human-readable glossary
 - `takt schema` for machine-readable JSON Schema output
-- `takt package init`, `takt action init`, and `takt workflow init` for starter
-  manifests
+- `takt init`, `takt generate action`, and `takt generate workflow` for
+  starter manifests
 
-`takt package init` should also bootstrap project-local agent guidance the way
+`takt init` should also bootstrap project-local agent guidance the way
 `swamp repo init --tool codex` does: an `AGENTS.md` plus `.agents/skills/`
 files that teach an agent how to interact with that initialized package.
 

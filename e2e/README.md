@@ -8,9 +8,9 @@ Every user-facing command in the current prototype should have an e2e spec:
 
 - `takt concepts`
 - `takt schema`
-- `takt package init` including project bootstrap files
-- `takt action init`
-- `takt workflow init`
+- `takt init` including project bootstrap files
+- `takt generate action`
+- `takt generate workflow`
 
 As new commands are added, add a matching spec file here.
 

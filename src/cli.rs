@@ -26,10 +26,12 @@ impl Cli {
     pub fn run(self) -> Result<()> {
         match self.command {
             Command::Concepts(command) => command.run(),
+            Command::Init(command) => command.run(),
+            Command::Generate(command) => command.run(),
+            Command::Schema(command) => command.run(),
             Command::Package(command) => command.run(),
             Command::Action(command) => command.run(),
             Command::Workflow(command) => command.run(),
-            Command::Schema(command) => command.run(),
         }
     }
 }
@@ -38,14 +40,19 @@ impl Cli {
 enum Command {
     /// Show the canonical Takt object model
     Concepts(ConceptsCommand),
-    /// Create starter Takt package manifests
-    Package(PackageCommand),
-    /// Create starter Takt actions
-    Action(ActionCommand),
-    /// Create starter Takt workflows
-    Workflow(WorkflowCommand),
+    /// Initialize a Takt package repository
+    Init(InitCommand),
+    /// Generate Takt actions and workflows
+    #[command(visible_alias = "g")]
+    Generate(GenerateCommand),
     /// Emit machine-readable schemas for Takt domain objects
     Schema(SchemaCommand),
+    #[command(hide = true)]
+    Package(PackageCommand),
+    #[command(hide = true)]
+    Action(ActionCommand),
+    #[command(hide = true)]
+    Workflow(WorkflowCommand),
 }
 
 #[derive(Debug, Args)]
@@ -126,6 +133,56 @@ impl ConceptsCommand {
 }
 
 #[derive(Debug, Args)]
+struct InitCommand {
+    /// Package name to write into the manifest
+    name: String,
+    /// Optional package description
+    #[arg(long)]
+    description: Option<String>,
+    /// Output path for the package manifest
+    #[arg(short, long, default_value = "package.yaml", value_name = "PATH")]
+    output: PathBuf,
+    /// Overwrite an existing file
+    #[arg(long)]
+    force: bool,
+}
+
+impl InitCommand {
+    fn run(self) -> Result<()> {
+        let project_root = package_project_root(&self.output);
+        let manifest = PackageManifest::starter(self.name.clone(), self.description);
+        let mut files = vec![yaml_scaffold_file(&manifest, self.output, "package")?];
+        files.extend(package_bootstrap_files(&project_root, &self.name));
+        write_scaffold_files(&files, self.force)
+    }
+}
+
+#[derive(Debug, Args)]
+#[command(arg_required_else_help = true)]
+struct GenerateCommand {
+    #[command(subcommand)]
+    command: GenerateSubcommand,
+}
+
+impl GenerateCommand {
+    fn run(self) -> Result<()> {
+        match self.command {
+            GenerateSubcommand::Action(command) => command.run(),
+            GenerateSubcommand::Workflow(command) => command.run(),
+        }
+    }
+}
+
+#[derive(Debug, Subcommand)]
+enum GenerateSubcommand {
+    /// Generate a starter action manifest
+    Action(GenerateActionCommand),
+    /// Generate a starter workflow manifest
+    Workflow(GenerateWorkflowCommand),
+}
+
+#[derive(Debug, Args)]
+#[command(arg_required_else_help = true)]
 struct PackageCommand {
     #[command(subcommand)]
     command: PackageSubcommand,
@@ -142,35 +199,11 @@ impl PackageCommand {
 #[derive(Debug, Subcommand)]
 enum PackageSubcommand {
     /// Write a starter package manifest
-    Init(PackageInitCommand),
+    Init(InitCommand),
 }
 
 #[derive(Debug, Args)]
-struct PackageInitCommand {
-    /// Package name to write into the manifest
-    name: String,
-    /// Optional package description
-    #[arg(long)]
-    description: Option<String>,
-    /// Output path for the package manifest
-    #[arg(short, long, default_value = "package.yaml", value_name = "PATH")]
-    output: PathBuf,
-    /// Overwrite an existing file
-    #[arg(long)]
-    force: bool,
-}
-
-impl PackageInitCommand {
-    fn run(self) -> Result<()> {
-        let project_root = package_project_root(&self.output);
-        let manifest = PackageManifest::starter(self.name.clone(), self.description);
-        let mut files = vec![yaml_scaffold_file(&manifest, self.output, "package")?];
-        files.extend(package_bootstrap_files(&project_root, &self.name));
-        write_scaffold_files(&files, self.force)
-    }
-}
-
-#[derive(Debug, Args)]
+#[command(arg_required_else_help = true)]
 struct ActionCommand {
     #[command(subcommand)]
     command: ActionSubcommand,
@@ -187,11 +220,11 @@ impl ActionCommand {
 #[derive(Debug, Subcommand)]
 enum ActionSubcommand {
     /// Write a starter action manifest
-    Init(ActionInitCommand),
+    Init(GenerateActionCommand),
 }
 
 #[derive(Debug, Args)]
-struct ActionInitCommand {
+struct GenerateActionCommand {
     /// Action name
     name: String,
     /// Capability reference this action uses
@@ -204,7 +237,7 @@ struct ActionInitCommand {
     force: bool,
 }
 
-impl ActionInitCommand {
+impl GenerateActionCommand {
     fn run(self) -> Result<()> {
         let output = self
             .output
@@ -215,6 +248,7 @@ impl ActionInitCommand {
 }
 
 #[derive(Debug, Args)]
+#[command(arg_required_else_help = true)]
 struct WorkflowCommand {
     #[command(subcommand)]
     command: WorkflowSubcommand,
@@ -231,11 +265,11 @@ impl WorkflowCommand {
 #[derive(Debug, Subcommand)]
 enum WorkflowSubcommand {
     /// Write a starter workflow manifest
-    Init(WorkflowInitCommand),
+    Init(GenerateWorkflowCommand),
 }
 
 #[derive(Debug, Args)]
-struct WorkflowInitCommand {
+struct GenerateWorkflowCommand {
     /// Workflow name
     name: String,
     /// Action reference used by the starter step
@@ -249,7 +283,7 @@ struct WorkflowInitCommand {
     force: bool,
 }
 
-impl WorkflowInitCommand {
+impl GenerateWorkflowCommand {
     fn run(self) -> Result<()> {
         let output = self
             .output

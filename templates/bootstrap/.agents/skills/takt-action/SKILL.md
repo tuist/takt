@@ -33,8 +33,8 @@ Actions are project-local configured uses of capabilities.
 
 ## Current Command
 
-Use `takt action init <name> <capability>` to scaffold an action manifest, then
-edit the generated YAML.
+Use `takt generate action <name> <capability>` to scaffold an action manifest,
+then edit the generated YAML.
 
 ## Smells
 

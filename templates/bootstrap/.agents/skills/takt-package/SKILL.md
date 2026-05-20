@@ -34,7 +34,7 @@ Packages are the publishable units in Takt.
 
 ## Current Command
 
-Use `takt package init <name>` to scaffold a new package, then edit
+Use `takt init <name>` to scaffold a new package repository, then edit
 `package.yaml`.
 
 ## Smells

@@ -2,47 +2,47 @@ Include e2e/spec_helper.sh
 
 package_manifest_after_init() {
   local dir="$1"
-  run_takt_in "$dir" package init @acme/test --description "Test package" >/dev/null || return $?
+  run_takt_in "$dir" init @acme/test --description "Test package" >/dev/null || return $?
   cat_file "$dir/package.yaml"
 }
 
 agents_guide_after_init() {
   local dir="$1"
-  run_takt_in "$dir" package init @acme/test >/dev/null || return $?
+  run_takt_in "$dir" init @acme/test >/dev/null || return $?
   cat_file "$dir/AGENTS.md"
 }
 
 action_skill_after_init() {
   local dir="$1"
-  run_takt_in "$dir" package init @acme/test >/dev/null || return $?
+  run_takt_in "$dir" init @acme/test >/dev/null || return $?
   cat_file "$dir/.agents/skills/takt-action/SKILL.md"
 }
 
 custom_root_agents_after_init() {
   local dir="$1"
-  run_takt package init @acme/test --output "$dir/bootstrap/package.yaml" >/dev/null || return $?
+  run_takt init @acme/test --output "$dir/bootstrap/package.yaml" >/dev/null || return $?
   cat_file "$dir/bootstrap/AGENTS.md"
 }
 
 package_init_without_force_fails() {
   local dir="$1"
   printf '# existing\n' | write_stdin_to "$dir/AGENTS.md"
-  run_takt_in "$dir" package init @acme/test
+  run_takt_in "$dir" init @acme/test
 }
 
 agents_guide_after_force_overwrite() {
   local dir="$1"
   printf '# existing\n' | write_stdin_to "$dir/AGENTS.md"
-  run_takt_in "$dir" package init @acme/test --force >/dev/null || return $?
+  run_takt_in "$dir" init @acme/test --force >/dev/null || return $?
   cat_file "$dir/AGENTS.md"
 }
 
-Describe 'takt package init'
+Describe 'takt init'
   BeforeEach 'setup_workspace'
   AfterEach 'cleanup_workspace'
 
   It 'creates a package scaffold at the default path'
-    When call run_takt_in "$TEST_WORKSPACE" package init @acme/test --description "Test package"
+    When call run_takt_in "$TEST_WORKSPACE" init @acme/test --description "Test package"
     The status should be success
     The output should include "Wrote package.yaml"
     The output should include "Wrote AGENTS.md"

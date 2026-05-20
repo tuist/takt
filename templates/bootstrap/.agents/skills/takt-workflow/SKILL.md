@@ -32,7 +32,7 @@ Workflows compose actions into repeatable operations.
 
 ## Current Command
 
-Use `takt workflow init <name> --uses <action>` to scaffold a workflow
+Use `takt generate workflow <name> --uses <action>` to scaffold a workflow
 manifest, then edit the generated YAML.
 
 ## Smells
