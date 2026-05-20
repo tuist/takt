@@ -1,15 +1,17 @@
 Include e2e/spec_helper.sh
 
-default_workflow_manifest() {
+default_workflow_manifest_query() {
   local dir="$1"
+  local expr="$2"
   run_takt_in "$dir" generate workflow daily-triage --uses github-triage >/dev/null || return $?
-  cat_file "$dir/workflows/daily-triage.yaml"
+  yaml_query "$dir/workflows/daily-triage.yaml" "$expr"
 }
 
-custom_workflow_manifest() {
+custom_workflow_manifest_query() {
   local dir="$1"
+  local expr="$2"
   run_takt generate workflow daily-triage --uses github-triage --output "$dir/custom/workflow.yaml" >/dev/null || return $?
-  cat_file "$dir/custom/workflow.yaml"
+  yaml_query "$dir/custom/workflow.yaml" "$expr"
 }
 
 Describe 'takt generate workflow'
@@ -23,18 +25,38 @@ Describe 'takt generate workflow'
   End
 
   It 'writes the expected workflow manifest'
-    When call default_workflow_manifest "$TEST_WORKSPACE"
+    When call default_workflow_manifest_query "$TEST_WORKSPACE" '.kind'
     The status should be success
-    The output should include "kind: Workflow"
-    The output should include "name: daily-triage"
-    The output should include "uses: github-triage"
-    The output should include "name: step-1"
+    The output should equal "Workflow"
+  End
+
+  It 'writes the expected workflow name'
+    When call default_workflow_manifest_query "$TEST_WORKSPACE" '.name'
+    The status should be success
+    The output should equal "daily-triage"
+  End
+
+  It 'writes the expected action reference'
+    When call default_workflow_manifest_query "$TEST_WORKSPACE" '.steps[0].uses'
+    The status should be success
+    The output should equal "github-triage"
+  End
+
+  It 'writes the expected starter step name'
+    When call default_workflow_manifest_query "$TEST_WORKSPACE" '.steps[0].name'
+    The status should be success
+    The output should equal "step-1"
   End
 
   It 'supports a custom output path'
-    When call custom_workflow_manifest "$TEST_WORKSPACE"
+    When call custom_workflow_manifest_query "$TEST_WORKSPACE" '.kind'
     The status should be success
-    The output should include "kind: Workflow"
-    The output should include "name: daily-triage"
+    The output should equal "Workflow"
+  End
+
+  It 'writes valid YAML to a custom output path'
+    When call custom_workflow_manifest_query "$TEST_WORKSPACE" '.name'
+    The status should be success
+    The output should equal "daily-triage"
   End
 End

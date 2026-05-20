@@ -1,9 +1,10 @@
 Include e2e/spec_helper.sh
 
-package_manifest_after_init() {
+package_manifest_query_after_init() {
   local dir="$1"
+  local expr="$2"
   run_takt_in "$dir" init @acme/test --description "Test package" >/dev/null || return $?
-  cat_file "$dir/package.yaml"
+  yaml_query "$dir/package.yaml" "$expr"
 }
 
 agents_guide_after_init() {
@@ -50,13 +51,33 @@ Describe 'takt init'
   End
 
   It 'writes the expected package manifest'
-    When call package_manifest_after_init "$TEST_WORKSPACE"
+    When call package_manifest_query_after_init "$TEST_WORKSPACE" '.kind'
     The status should be success
-    The output should include "api_version: takt.dev/v1alpha1"
-    The output should include "kind: Package"
-    The output should include "name: '@acme/test'"
-    The output should include "sandbox: microsandbox"
-    The output should include "example.run:"
+    The output should equal "Package"
+  End
+
+  It 'writes the expected package name'
+    When call package_manifest_query_after_init "$TEST_WORKSPACE" '.package.name'
+    The status should be success
+    The output should equal "@acme/test"
+  End
+
+  It 'writes the expected package description'
+    When call package_manifest_query_after_init "$TEST_WORKSPACE" '.package.description'
+    The status should be success
+    The output should equal "Test package"
+  End
+
+  It 'writes the expected runtime sandbox'
+    When call package_manifest_query_after_init "$TEST_WORKSPACE" '.runtimes.default.sandbox'
+    The status should be success
+    The output should equal "microsandbox"
+  End
+
+  It 'writes the expected capability runtime binding'
+    When call package_manifest_query_after_init "$TEST_WORKSPACE" '.capabilities."example.run".runtime'
+    The status should be success
+    The output should equal "default"
   End
 
   It 'bootstraps a project-local AGENTS guide'

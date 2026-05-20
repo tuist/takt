@@ -44,3 +44,33 @@ impl std::fmt::Display for TaktTable {
         write!(f, "{}", self.table)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::TaktTable;
+
+    #[test]
+    fn display_renders_headers_and_rows() {
+        let mut table = TaktTable::new(&["Concept", "Scope"]);
+        table.add_row(["Package", "Registry"]);
+
+        let rendered = table.to_string();
+
+        assert!(rendered.contains("Concept"));
+        assert!(rendered.contains("Scope"));
+        assert!(rendered.contains("Package"));
+        assert!(rendered.contains("Registry"));
+    }
+
+    #[test]
+    fn display_uses_borderless_preset() {
+        let mut table = TaktTable::new(&["Concept", "Scope"]);
+        table.add_row(["Action", "Project"]);
+
+        let rendered = table.to_string();
+
+        assert!(!rendered.contains('|'));
+        assert!(!rendered.contains('┼'));
+        assert!(!rendered.contains('│'));
+    }
+}

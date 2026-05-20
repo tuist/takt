@@ -21,6 +21,12 @@ cat_file() {
   cat "$1"
 }
 
+yaml_query() {
+  local file="$1"
+  local expr="$2"
+  mise exec -- yq -r "$expr" "$file"
+}
+
 write_stdin_to() {
   mkdir -p "$(dirname "$1")"
   cat >"$1"

@@ -14,6 +14,9 @@ Every user-facing command in the current prototype should have an e2e spec:
 
 As new commands are added, add a matching spec file here.
 
+Generated manifest checks should prefer `yq` queries over raw substring matches
+so the suite validates YAML structure, not just text output.
+
 ## Running
 
 ```sh
