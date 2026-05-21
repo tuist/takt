@@ -6,12 +6,12 @@ That matters because the user is already working through the harness. That is wh
 
 If you are new to Takt, start with these concepts:
 
-- **Package**: a publishable collection of reusable capabilities.
-- **Capability**: a reusable thing a package can do.
-- **Action**: a project-specific configuration of a capability.
-- **Workflow**: actions wired together into a larger task.
-- **Run**: one execution of an action or workflow.
-- **Artifact**: the output produced by a run.
+- **Package** 📦: a publishable collection of reusable capabilities.
+- **Capability** 🧩: a reusable thing a package can do.
+- **Action** ⚙️: a project-specific configuration of a capability.
+- **Workflow** 🔀: actions wired together into a larger task.
+- **Run** ▶️: one execution of an action or workflow.
+- **Artifact** 📄: the output produced by a run.
 
 ## Current Surface
 
@@ -22,25 +22,6 @@ If you are new to Takt, start with these concepts:
 - `takt validate` to check package and manifest correctness
 - `takt run` to plan action and workflow runs
 - `takt mcp` to expose the same model through MCP
-
-## Design Principles
-
-Takt is built around a few core principles:
-
-- one shared core for CLI and MCP behavior
-- structured output for agent-friendly automation
-- thin agent skills that route to executable interfaces instead of duplicating behavior in markdown
-
-## Command Examples
-
-```sh
-takt concepts
-takt schema all --format json
-takt init
-takt validate
-takt run action <name>
-takt mcp
-```
 
 ## License
 
