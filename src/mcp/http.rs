@@ -33,3 +33,28 @@ fn normalized_path(path: &str) -> String {
         format!("/{path}")
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::normalized_path;
+
+    #[test]
+    fn normalized_path_defaults_empty_input_to_root() {
+        assert_eq!(normalized_path(""), "/");
+    }
+
+    #[test]
+    fn normalized_path_preserves_root_path() {
+        assert_eq!(normalized_path("/"), "/");
+    }
+
+    #[test]
+    fn normalized_path_preserves_existing_leading_slash() {
+        assert_eq!(normalized_path("/mcp"), "/mcp");
+    }
+
+    #[test]
+    fn normalized_path_adds_leading_slash_when_missing() {
+        assert_eq!(normalized_path("mcp"), "/mcp");
+    }
+}
