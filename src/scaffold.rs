@@ -95,3 +95,87 @@ fn render_template(template: &str, replacements: &[(&str, &str)]) -> String {
 
     rendered
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{CodingAgent, package_bootstrap_files, package_project_root, render_template};
+    use std::path::{Path, PathBuf};
+
+    #[test]
+    fn package_project_root_defaults_to_current_directory() {
+        assert_eq!(
+            package_project_root(Path::new("package.yaml")),
+            PathBuf::from(".")
+        );
+    }
+
+    #[test]
+    fn package_project_root_uses_manifest_parent_directory() {
+        assert_eq!(
+            package_project_root(Path::new("packages/example/package.yaml")),
+            PathBuf::from("packages/example")
+        );
+    }
+
+    #[test]
+    fn package_bootstrap_files_are_empty_when_coding_agent_is_disabled() {
+        assert!(
+            package_bootstrap_files(Path::new("."), "@acme/test", CodingAgent::None).is_empty()
+        );
+    }
+
+    #[test]
+    fn package_bootstrap_files_include_agents_guide_and_skills() {
+        let files = package_bootstrap_files(Path::new("."), "@acme/test", CodingAgent::Codex);
+        let paths: Vec<_> = files.iter().map(|file| file.path.as_path()).collect();
+
+        assert_eq!(files.len(), 5);
+        assert_eq!(
+            paths,
+            vec![
+                Path::new("AGENTS.md"),
+                Path::new(".agents/skills/takt-getting-started/SKILL.md"),
+                Path::new(".agents/skills/takt-package/SKILL.md"),
+                Path::new(".agents/skills/takt-action/SKILL.md"),
+                Path::new(".agents/skills/takt-workflow/SKILL.md"),
+            ]
+        );
+        assert_eq!(files[0].label, "agent guide");
+        assert!(
+            files[0]
+                .contents
+                .contains("This package is named `@acme/test`.")
+        );
+        assert!(files[0].contents.contains("`takt concepts --format toon`"));
+        assert!(
+            files[1]
+                .contents
+                .contains("Prefer CLI TOON output over prose in this file")
+        );
+    }
+
+    #[test]
+    fn package_bootstrap_files_respect_custom_project_root() {
+        let files = package_bootstrap_files(
+            Path::new("packages/example"),
+            "@acme/test",
+            CodingAgent::Codex,
+        );
+
+        assert_eq!(files[0].path, PathBuf::from("packages/example/AGENTS.md"));
+        assert_eq!(
+            files[4].path,
+            PathBuf::from("packages/example/.agents/skills/takt-workflow/SKILL.md")
+        );
+    }
+
+    #[test]
+    fn render_template_replaces_named_placeholders() {
+        let rendered = render_template(
+            "Hello, {{name}}. Welcome to {{place}}.",
+            &[("name", "Ada"), ("place", "Takt")],
+        );
+
+        assert_eq!(rendered, "Hello, Ada. Welcome to Takt.");
+    }
+}
