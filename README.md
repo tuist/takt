@@ -1,10 +1,10 @@
-# Fragua 🔥
+# Takt 🔥
 
-Fragua is an early-stage toolkit for packaging capabilities and composing workflows for AI agents. The current prototype is implemented in Rust and exposes a CLI and MCP server under the `takt` name while the product model continues to take shape.
+Takt is a toolkit for packaging capabilities and composing workflows for AI agents. The current implementation is written in Rust and exposes a CLI and MCP server.
 
-## What Fragua Is For ⚙️
+## What Takt Is For
 
-Fragua is aimed at teams that want a clearer way to:
+Takt is aimed at teams that want a clearer way to:
 
 - publish reusable capabilities as packages
 - configure those capabilities for a specific project as actions
@@ -16,7 +16,7 @@ The canonical object model is:
 
 `package -> capability -> action -> workflow -> run -> artifact`
 
-## Why This Exists 🧠
+## Why This Exists
 
 The main idea is to separate reusable registry concepts from project-local configuration:
 
@@ -26,13 +26,13 @@ The main idea is to separate reusable registry concepts from project-local confi
 
 That gives the system a clearer contract for validation, execution, and agent tooling.
 
-## Runtime Model 🔒
+## Runtime Model
 
 Capabilities execute on named runtime profiles. A runtime profile declares the sandbox, pinned OCI image, CPU and memory limits, and network policy for execution. The current direction points toward reviewed, constrained runtimes instead of ad hoc shell scripts.
 
-## Current Prototype Surface ✨
+## Current Surface
 
-The Rust prototype currently centers on:
+The current CLI and MCP surface centers on:
 
 - `takt concepts` to explain the core nouns
 - `takt schema` to emit machine-readable schemas
@@ -42,15 +42,15 @@ The Rust prototype currently centers on:
 - `takt run` to plan action and workflow runs
 - `takt mcp` to expose the same model through MCP
 
-## Status 🚧
+## Design Principles
 
-Fragua is still a prototype. The implementation direction is:
+Takt is built around a few core principles:
 
 - one shared core for CLI and MCP behavior
 - structured output for agent-friendly automation
 - thin agent skills that route to executable interfaces instead of duplicating behavior in markdown
 
-## Command Examples 📦
+## Command Examples
 
 ```sh
 takt concepts
@@ -61,6 +61,6 @@ takt run action <name>
 takt mcp
 ```
 
-## License 🙂
+## License
 
 MIT
