@@ -30,9 +30,9 @@ pub struct Cli {
     #[arg(long, value_enum, global = true, default_value_t = OutputFormat::Text)]
     format: OutputFormat,
 
-    /// Repository directory for commands that operate on a Takt repository
-    #[arg(long, global = true, value_name = "PATH")]
-    repo_dir: Option<PathBuf>,
+    /// Package directory for commands that operate on a Takt package
+    #[arg(long = "package-dir", global = true, value_name = "PATH")]
+    package_dir: Option<PathBuf>,
 
     #[command(subcommand)]
     command: Command,
@@ -42,7 +42,7 @@ impl Cli {
     pub fn run(self) -> Result<()> {
         let context = CommandContext {
             format: self.format,
-            repo_dir: self.repo_dir,
+            package_dir: self.package_dir,
         };
         match self.command {
             Command::Concepts(command) => command.run(context),
@@ -60,7 +60,7 @@ impl Cli {
 enum Command {
     /// Show the canonical Takt object model
     Concepts(ConceptsCommand),
-    /// Initialize a Takt package repository
+    /// Initialize a Takt package
     Init(InitCommand),
     /// Generate Takt actions and workflows
     #[command(visible_alias = "g")]

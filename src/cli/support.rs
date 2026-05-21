@@ -8,12 +8,13 @@ use std::path::PathBuf;
 pub(crate) enum OutputFormat {
     Text,
     Json,
+    Toon,
 }
 
 #[derive(Debug, Clone)]
 pub(crate) struct CommandContext {
     pub format: OutputFormat,
-    pub repo_dir: Option<PathBuf>,
+    pub package_dir: Option<PathBuf>,
 }
 
 pub(crate) fn print_written_files(files: &[crate::core::WrittenFile]) {
@@ -29,22 +30,22 @@ where
     match format {
         OutputFormat::Text => print!("{}", serde_yaml::to_string(value)?),
         OutputFormat::Json => println!("{}", serde_json::to_string_pretty(value)?),
+        OutputFormat::Toon => println!("{}", serde_json::to_string(value)?),
     }
 
     Ok(())
 }
 
-pub(crate) fn print_pretty_json<T>(value: &T) -> Result<()>
+pub(crate) fn print_structured_json<T>(value: &T, format: OutputFormat) -> Result<()>
 where
     T: Serialize,
 {
-    println!("{}", serde_json::to_string_pretty(value)?);
-    Ok(())
-}
+    match format {
+        OutputFormat::Toon => println!("{}", serde_json::to_string(value)?),
+        OutputFormat::Text | OutputFormat::Json => {
+            println!("{}", serde_json::to_string_pretty(value)?)
+        }
+    }
 
-pub(crate) fn print_json<T>(value: &T) -> Result<()>
-where
-    T: Serialize,
-{
-    print_pretty_json(value)
+    Ok(())
 }

@@ -64,7 +64,7 @@ Describe 'takt validate'
     The output should equal "true"
   End
 
-  It 'can validate the whole repository'
+  It 'can validate the whole package'
     When call all_validation_query "$TEST_WORKSPACE" '.reports | length'
     The status should be success
     The output should equal "3"

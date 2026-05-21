@@ -844,7 +844,7 @@ fn find_repo_root(start: &Path) -> Result<PathBuf> {
     let start = if start.is_file() {
         start
             .parent()
-            .ok_or_else(|| eyre!("unable to resolve repository root from file path"))?
+            .ok_or_else(|| eyre!("unable to resolve package root from file path"))?
     } else {
         start
     };
@@ -856,7 +856,7 @@ fn find_repo_root(start: &Path) -> Result<PathBuf> {
     }
 
     bail!(
-        "not a Takt repository: no package.yaml found from {} upward",
+        "not a Takt package: no package.yaml found from {} upward",
         start.display()
     )
 }

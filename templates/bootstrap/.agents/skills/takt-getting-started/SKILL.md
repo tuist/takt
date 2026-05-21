@@ -1,22 +1,22 @@
 ---
 name: takt-getting-started
 description: >
-  Onboard an agent to a Takt package repository. Use when the user is new to
-  Takt, asks for the core nouns, or needs the package, capability, action, and
-  workflow model explained before deeper design work.
+  Onboard an agent to a Takt package. Use when the user is new to Takt, asks
+  for the core nouns, or needs the package, capability, action, and workflow
+  model explained before deeper design work.
 ---
 
 # Takt Getting Started
 
 Use this skill to keep the local package vocabulary consistent.
-Prefer CLI JSON output over prose in this file when the command can answer the question directly.
+Prefer CLI TOON output over prose in this file when the command can answer the question directly.
 
 ## First Steps
 
 1. Read `package.yaml`.
-2. Run `takt concepts --format json`.
-3. If the current file shapes matter, run `takt schema all --format json`.
-4. If the repository already has actions or workflows, run `takt validate all --format json`.
+2. Run `takt concepts --format toon`.
+3. If the current file shapes matter, run `takt schema all --format toon`.
+4. If the package already has actions or workflows, run `takt validate all --format toon`.
 5. Explain the nouns in this order:
    `package -> capability -> action -> workflow -> run -> artifact`
 

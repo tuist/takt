@@ -96,7 +96,7 @@ mcp_tools_list_query() {
   return "$status"
 }
 
-mcp_repo_init_without_agents() {
+mcp_package_init_without_agents() {
   local dir="$1"
   local initialize_headers="$dir/initialize.headers"
   local initialize_body="$dir/initialize.body"
@@ -131,7 +131,7 @@ mcp_repo_init_without_agents() {
   }
 
   mcp_http_post "$url" \
-    "{\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"tools/call\",\"params\":{\"name\":\"repo_init\",\"arguments\":{\"name\":\"@acme/test\",\"output\":\"$output\",\"coding_agent\":\"none\"}}}" \
+    "{\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"tools/call\",\"params\":{\"name\":\"package_init\",\"arguments\":{\"name\":\"@acme/test\",\"output\":\"$output\",\"coding_agent\":\"none\"}}}" \
     "$call_headers" \
     "$call_body" \
     -H "mcp-session-id: $session_id" >/dev/null || {
@@ -171,14 +171,14 @@ Describe 'takt mcp HTTP transport'
     The output should not equal ""
   End
 
-  It 'lists the repo_init tool over HTTP'
-    When call mcp_tools_list_query "$TEST_WORKSPACE" '.result.tools[] | select(.name == "repo_init") | .description'
+  It 'lists the package_init tool over HTTP'
+    When call mcp_tools_list_query "$TEST_WORKSPACE" '.result.tools[] | select(.name == "package_init") | .description'
     The status should be success
-    The output should include "Initialize a Takt package repository"
+    The output should include "Initialize a Takt package"
   End
 
-  It 'can call repo_init over HTTP without bootstrapping coding-agent files'
-    When call mcp_repo_init_without_agents "$TEST_WORKSPACE"
+  It 'can call package_init over HTTP without bootstrapping coding-agent files'
+    When call mcp_package_init_without_agents "$TEST_WORKSPACE"
     The status should be success
     The output should equal "none"
   End

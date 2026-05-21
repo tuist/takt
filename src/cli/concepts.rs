@@ -1,4 +1,4 @@
-use crate::cli::support::{CommandContext, OutputFormat, print_json};
+use crate::cli::support::{CommandContext, OutputFormat, print_structured_json};
 use crate::core;
 use crate::output::style;
 use crate::output::table::TaktTable;
@@ -12,8 +12,8 @@ impl ConceptsCommand {
     pub(crate) fn run(self, context: CommandContext) -> Result<()> {
         let concepts = core::concepts();
 
-        if context.format == OutputFormat::Json {
-            return print_json(&concepts);
+        if context.format != OutputFormat::Text {
+            return print_structured_json(&concepts, context.format);
         }
 
         println!("{} {}", style::title("Takt"), style::muted(concepts.chain));

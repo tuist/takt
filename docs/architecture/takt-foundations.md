@@ -60,7 +60,7 @@ The current Rust prototype focuses on two foundations:
 - `takt schema` for inspectable domain schemas
 - `takt init`, `takt generate action`, and `takt generate workflow` for
   starter manifests
-- `takt validate` for repository and manifest checks
+- `takt validate` for package and manifest checks
 - `takt run` for planned action and workflow runs, persisted under `.takt/runs/`
 
 Unlike Swamp, which does not expose a dedicated concepts command, Takt uses
@@ -75,13 +75,13 @@ Takt should not treat skills as the canonical product interface.
 
 The authoritative layers should be:
 
-- CLI commands with `--format json` for local scripting and agent use
+- CLI commands with `--format toon` for token-lean agent use and `--format json` for readable structured output
 - an MCP server, backed by the same core Rust library, for typed tool use
 - skills only as thin routing, policy, and safety guidance
 
 That means:
 
-- if a fact can come from `takt ... --format json`, keep it out of skills
+- if a fact can come from `takt ... --format toon`, keep it out of skills
 - if an operation can be done by a command or MCP tool, skills should point to
   it rather than re-document it procedurally
 - the CLI and MCP surfaces should evolve together from one implementation, so

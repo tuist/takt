@@ -1,4 +1,6 @@
-use crate::cli::support::{CommandContext, OutputFormat, print_json, print_written_files};
+use crate::cli::support::{
+    CommandContext, OutputFormat, print_structured_json, print_written_files,
+};
 use crate::core;
 use crate::scaffold::CodingAgent;
 use clap::Args;
@@ -15,7 +17,7 @@ pub(crate) struct InitCommand {
     /// Output path for the package manifest
     #[arg(short, long, default_value = "package.yaml", value_name = "PATH")]
     output: PathBuf,
-    /// Coding-agent bootstrap to write into the repository
+    /// Coding-agent bootstrap to write into the package
     #[arg(long, value_enum, default_value_t = CodingAgent::Codex)]
     coding_agent: CodingAgent,
     /// Overwrite an existing file
@@ -38,7 +40,9 @@ impl InitCommand {
                 print_written_files(&output.files);
                 Ok(())
             }
-            OutputFormat::Json => print_json(&output),
+            OutputFormat::Json | OutputFormat::Toon => {
+                print_structured_json(&output, context.format)
+            }
         }
     }
 }

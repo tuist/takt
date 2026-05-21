@@ -14,7 +14,7 @@ pub(crate) struct RunCommand {
 impl RunCommand {
     pub(crate) fn run(self, context: CommandContext) -> Result<()> {
         let repo =
-            core::discover_repository(context.repo_dir.clone().unwrap_or(env::current_dir()?))?;
+            core::discover_repository(context.package_dir.clone().unwrap_or(env::current_dir()?))?;
 
         match self.command {
             RunSubcommand::Action(command) => print_data(

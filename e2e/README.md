@@ -19,7 +19,7 @@ As new commands are added, add a matching spec file here.
 Generated manifest checks should prefer `yq` queries over raw substring matches
 so the suite validates YAML structure, not just text output.
 
-Command output checks should prefer `--format json` plus `yq` queries for the
+Command output checks should prefer `--format toon` plus `yq` queries for the
 same reason.
 
 ## Running

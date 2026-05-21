@@ -8,7 +8,7 @@ description: >
 # Takt Workflow
 
 Workflows compose actions into repeatable operations.
-This skill is a routing guide. Treat `takt schema workflow --format json` and workflow manifests as the source of truth.
+This skill is a routing guide. Treat `takt schema workflow --format toon` and workflow manifests as the source of truth.
 
 ## Responsibilities
 
@@ -20,8 +20,8 @@ This skill is a routing guide. Treat `takt schema workflow --format json` and wo
 ## Review Flow
 
 1. Read the relevant file under `workflows/`.
-2. Run `takt schema workflow --format json`.
-3. Run `takt validate workflow <name-or-path> --format json`.
+2. Run `takt schema workflow --format toon`.
+3. Run `takt validate workflow <name-or-path> --format toon`.
 4. Check that every step uses an action reference.
 
 ## Rules

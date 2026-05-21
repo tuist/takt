@@ -118,9 +118,9 @@ Describe 'takt init'
   It 'bootstraps a project-local AGENTS guide'
     When call agents_guide_after_init "$TEST_WORKSPACE"
     The status should be success
-    The output should include "This repository is a Takt package named"
+    The output should include "This package is named"
     The output should include "@acme/test"
-    The output should include "takt concepts"
+    The output should include "takt concepts --format toon"
     The output should include ".agents/skills/takt-action/SKILL.md"
   End
 
@@ -128,7 +128,7 @@ Describe 'takt init'
     When call action_skill_after_init "$TEST_WORKSPACE"
     The status should be success
     The output should include "Actions are project-local configured uses of capabilities."
-    The output should include "takt schema action"
+    The output should include "takt schema action --format toon"
     The output should include "Workflows call actions, not capabilities."
   End
 
@@ -146,7 +146,7 @@ Describe 'takt init'
   It 'writes bootstrap files relative to a custom manifest path'
     When call custom_root_agents_after_init "$TEST_WORKSPACE"
     The status should be success
-    The output should include "This repository is a Takt package named"
+    The output should include "This package is named"
     The output should include "@acme/test"
   End
 
@@ -159,7 +159,7 @@ Describe 'takt init'
   It 'overwrites existing bootstrap files with --force'
     When call agents_guide_after_force_overwrite "$TEST_WORKSPACE"
     The status should be success
-    The output should include "This repository is a Takt package named"
+    The output should include "This package is named"
     The output should include "@acme/test"
   End
 End

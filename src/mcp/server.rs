@@ -1,8 +1,8 @@
-use crate::mcp::helpers::{load_repo, tool_error};
+use crate::mcp::helpers::{load_package, tool_error};
 use crate::mcp::output::SchemaGetOutput;
 use crate::mcp::params::{
-    ActionGenerateParams, ActionSelectorParams, RepoInitParams, RepoScopedParams, RunPlanParams,
-    SchemaGetParams, WorkflowGenerateParams, WorkflowSelectorParams,
+    ActionGenerateParams, ActionSelectorParams, PackageInitParams, PackageScopedParams,
+    RunPlanParams, SchemaGetParams, WorkflowGenerateParams, WorkflowSelectorParams,
 };
 use crate::scaffold::CodingAgent;
 use color_eyre::eyre::Result;
@@ -88,12 +88,12 @@ impl TaktMcpServer {
     }
 
     #[tool(
-        name = "repo_init",
-        description = "Initialize a Takt package repository and optionally bootstrap coding-agent guidance"
+        name = "package_init",
+        description = "Initialize a Takt package and optionally bootstrap coding-agent guidance"
     )]
-    async fn repo_init(
+    async fn package_init(
         &self,
-        Parameters(params): Parameters<RepoInitParams>,
+        Parameters(params): Parameters<PackageInitParams>,
     ) -> Result<Json<crate::core::InitOutput>, ErrorData> {
         crate::core::init_package(
             params.name,
@@ -147,13 +147,13 @@ impl TaktMcpServer {
 
     #[tool(
         name = "package_validate",
-        description = "Validate the package manifest in a Takt repository"
+        description = "Validate the root package manifest"
     )]
     async fn package_validate(
         &self,
-        Parameters(params): Parameters<RepoScopedParams>,
+        Parameters(params): Parameters<PackageScopedParams>,
     ) -> Result<Json<crate::core::ValidationReport>, ErrorData> {
-        let repo = load_repo(params.repo_dir).map_err(tool_error)?;
+        let repo = load_package(params.package_dir).map_err(tool_error)?;
         Ok(Json(crate::core::validate_package(&repo)))
     }
 
@@ -165,7 +165,7 @@ impl TaktMcpServer {
         &self,
         Parameters(params): Parameters<ActionSelectorParams>,
     ) -> Result<Json<crate::core::ValidationReport>, ErrorData> {
-        let repo = load_repo(params.repo_dir).map_err(tool_error)?;
+        let repo = load_package(params.package_dir).map_err(tool_error)?;
         let action = crate::core::load_action(&repo, &params.selector).map_err(tool_error)?;
         Ok(Json(crate::core::validate_action_document(&repo, &action)))
     }
@@ -178,7 +178,7 @@ impl TaktMcpServer {
         &self,
         Parameters(params): Parameters<WorkflowSelectorParams>,
     ) -> Result<Json<crate::core::ValidationReport>, ErrorData> {
-        let repo = load_repo(params.repo_dir).map_err(tool_error)?;
+        let repo = load_package(params.package_dir).map_err(tool_error)?;
         let workflow = crate::core::load_workflow(&repo, &params.selector).map_err(tool_error)?;
         Ok(Json(crate::core::validate_workflow_document(
             &repo, &workflow,
@@ -191,9 +191,9 @@ impl TaktMcpServer {
     )]
     async fn validate_all(
         &self,
-        Parameters(params): Parameters<RepoScopedParams>,
+        Parameters(params): Parameters<PackageScopedParams>,
     ) -> Result<Json<crate::core::ValidationSummary>, ErrorData> {
-        let repo = load_repo(params.repo_dir).map_err(tool_error)?;
+        let repo = load_package(params.package_dir).map_err(tool_error)?;
         crate::core::validate_all(&repo)
             .map(Json)
             .map_err(tool_error)
@@ -207,7 +207,7 @@ impl TaktMcpServer {
         &self,
         Parameters(params): Parameters<RunPlanParams>,
     ) -> Result<Json<crate::core::ActionRunOutput>, ErrorData> {
-        let repo = load_repo(params.repo_dir).map_err(tool_error)?;
+        let repo = load_package(params.package_dir).map_err(tool_error)?;
         crate::core::plan_action_run(
             &repo,
             &params.selector,
@@ -226,7 +226,7 @@ impl TaktMcpServer {
         &self,
         Parameters(params): Parameters<RunPlanParams>,
     ) -> Result<Json<crate::core::WorkflowRunOutput>, ErrorData> {
-        let repo = load_repo(params.repo_dir).map_err(tool_error)?;
+        let repo = load_package(params.package_dir).map_err(tool_error)?;
         crate::core::plan_workflow_run(
             &repo,
             &params.selector,

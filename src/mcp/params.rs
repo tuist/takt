@@ -10,7 +10,7 @@ pub(super) struct SchemaGetParams {
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
-pub(super) struct RepoInitParams {
+pub(super) struct PackageInitParams {
     pub name: String,
     pub description: Option<String>,
     pub output: Option<String>,
@@ -35,26 +35,26 @@ pub(super) struct WorkflowGenerateParams {
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
-pub(super) struct RepoScopedParams {
-    pub repo_dir: Option<String>,
+pub(super) struct PackageScopedParams {
+    pub package_dir: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub(super) struct ActionSelectorParams {
     pub selector: String,
-    pub repo_dir: Option<String>,
+    pub package_dir: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub(super) struct WorkflowSelectorParams {
     pub selector: String,
-    pub repo_dir: Option<String>,
+    pub package_dir: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub(super) struct RunPlanParams {
     pub selector: String,
-    pub repo_dir: Option<String>,
+    pub package_dir: Option<String>,
     pub inputs: Option<BTreeMap<String, Value>>,
     pub persist: Option<bool>,
 }

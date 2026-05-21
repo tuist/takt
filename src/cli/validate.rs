@@ -14,7 +14,7 @@ pub(crate) struct ValidateCommand {
 impl ValidateCommand {
     pub(crate) fn run(self, context: CommandContext) -> Result<()> {
         let repo =
-            core::discover_repository(context.repo_dir.clone().unwrap_or(env::current_dir()?))?;
+            core::discover_repository(context.package_dir.clone().unwrap_or(env::current_dir()?))?;
 
         match self.command {
             ValidateSubcommand::Package(_) => finish_report(

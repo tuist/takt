@@ -1,4 +1,6 @@
-use crate::cli::support::{CommandContext, OutputFormat, print_json, print_written_files};
+use crate::cli::support::{
+    CommandContext, OutputFormat, print_structured_json, print_written_files,
+};
 use crate::core;
 use clap::{Args, Subcommand};
 use color_eyre::eyre::Result;
@@ -51,7 +53,9 @@ impl GenerateActionCommand {
                 print_written_files(&output.files);
                 Ok(())
             }
-            OutputFormat::Json => print_json(&output),
+            OutputFormat::Json | OutputFormat::Toon => {
+                print_structured_json(&output, context.format)
+            }
         }
     }
 }
@@ -80,7 +84,9 @@ impl GenerateWorkflowCommand {
                 print_written_files(&output.files);
                 Ok(())
             }
-            OutputFormat::Json => print_json(&output),
+            OutputFormat::Json | OutputFormat::Toon => {
+                print_structured_json(&output, context.format)
+            }
         }
     }
 }

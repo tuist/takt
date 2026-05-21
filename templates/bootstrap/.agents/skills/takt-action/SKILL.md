@@ -9,7 +9,7 @@ description: >
 # Takt Action
 
 Actions are project-local configured uses of capabilities.
-This skill is a routing guide. Treat `takt schema action --format json` and the action manifest as the source of truth.
+This skill is a routing guide. Treat `takt schema action --format toon` and the action manifest as the source of truth.
 
 ## Responsibilities
 
@@ -22,8 +22,8 @@ This skill is a routing guide. Treat `takt schema action --format json` and the 
 ## Review Flow
 
 1. Read the relevant file under `actions/`.
-2. Run `takt schema action --format json`.
-3. Run `takt validate action <name-or-path> --format json`.
+2. Run `takt schema action --format toon`.
+3. Run `takt validate action <name-or-path> --format toon`.
 4. Confirm the action is configuration, not implementation.
 
 ## Rules

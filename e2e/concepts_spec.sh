@@ -1,5 +1,10 @@
 Include e2e/spec_helper.sh
 
+concepts_toon_query() {
+  local expr="$1"
+  run_takt --format toon concepts | json_query_stdin "$expr"
+}
+
 concepts_json_query() {
   local expr="$1"
   run_takt --format json concepts | json_query_stdin "$expr"
@@ -23,5 +28,11 @@ Describe 'takt concepts'
     When call concepts_json_query '.chain'
     The status should be success
     The output should equal "package -> capability -> action -> workflow -> run -> artifact"
+  End
+
+  It 'supports TOON output through the global format flag'
+    When call concepts_toon_query '.concepts[0].name'
+    The status should be success
+    The output should equal "Package"
   End
 End
