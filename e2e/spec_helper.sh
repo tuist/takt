@@ -1,7 +1,9 @@
 TAKT_ROOT="${SHELLSPEC_PROJECT_ROOT:-$(pwd)}"
+CARGO_BIN="$(mise which cargo)"
+YQ_BIN="$(mise which yq)"
 
 run_takt() {
-  mise exec -- cargo run --quiet --manifest-path "$TAKT_ROOT/Cargo.toml" -- "$@"
+  "$CARGO_BIN" run --quiet --manifest-path "$TAKT_ROOT/Cargo.toml" -- "$@"
 }
 
 run_takt_in() {
@@ -9,7 +11,7 @@ run_takt_in() {
   shift
   (
     cd "$dir" &&
-      mise exec -- cargo run --quiet --manifest-path "$TAKT_ROOT/Cargo.toml" -- "$@"
+      "$CARGO_BIN" run --quiet --manifest-path "$TAKT_ROOT/Cargo.toml" -- "$@"
   )
 }
 
@@ -24,7 +26,7 @@ cat_file() {
 yaml_query() {
   local file="$1"
   local expr="$2"
-  mise exec -- yq -r "$expr" "$file"
+  "$YQ_BIN" -r "$expr" "$file"
 }
 
 write_stdin_to() {

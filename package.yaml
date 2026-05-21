@@ -1,9 +1,8 @@
 api_version: takt.dev/v1alpha1
 kind: Package
 package:
-  name: '@tuist/takt'
+  name: '@acme/test'
   version: 0.1.0
-  description: Package-driven workflows for agent operations
 runtimes:
   default:
     sandbox: microsandbox
