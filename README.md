@@ -5,7 +5,7 @@ Most of the energy around agents right now is going into layers that sit above t
 That matters because the user is already working through the harness. That is where intent is expressed, progress is reviewed, and taste enters the loop. Takt gives the agent a durable substrate when ad hoc work wants to harden into structure: capabilities it can reuse, actions it can configure for a project, workflows it can run, and artifacts it can inspect afterward.
 
 > [!NOTE]
-> Takt is designed around portable building blocks. Packages can publish capabilities to a registry so other repositories in the same organization can reuse them. Actions and workflows stay local to each project, but they can be built on top of the same shared capabilities.
+> Takt is designed around portable building blocks. Packages themselves can be published to a registry and reused across repositories in the same organization, together with the capabilities they expose. Actions and workflows stay local to each project, but they can be built on top of the same shared packages.
 
 If you are new to Takt, start with these concepts:
 
