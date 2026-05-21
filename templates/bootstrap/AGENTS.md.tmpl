@@ -13,7 +13,33 @@ This package is named `{{package_name}}`.
 
 ## Skills
 
-- `.agents/skills/takt-getting-started/SKILL.md`
-- `.agents/skills/takt-package/SKILL.md`
-- `.agents/skills/takt-action/SKILL.md`
-- `.agents/skills/takt-workflow/SKILL.md`
+IMPORTANT: Skills are routing and workflow guides stored in `.agents/skills/`.
+When the task matches one of the areas below, read the corresponding `SKILL.md`
+before editing files or inventing command sequences.
+
+- `.agents/skills/takt-getting-started/SKILL.md` - Onboard a user to Takt's package, capability, action, and workflow model
+- `.agents/skills/takt-package/SKILL.md` - Design or review package capabilities and runtime profiles
+- `.agents/skills/takt-action/SKILL.md` - Create, edit, validate, and run actions
+- `.agents/skills/takt-workflow/SKILL.md` - Create, edit, validate, and run workflows
+
+## Getting Started
+
+At the start of a conversation:
+
+1. Read `takt.json`.
+2. If the user is new to Takt or asks for the core nouns, read `.agents/skills/takt-getting-started/SKILL.md`.
+3. If the task is about capabilities or runtimes, read `.agents/skills/takt-package/SKILL.md`.
+4. If the task is about configuring a capability use, read `.agents/skills/takt-action/SKILL.md`.
+5. If the task is about orchestration, step wiring, or run order, read `.agents/skills/takt-workflow/SKILL.md`.
+
+## Commands
+
+Use `takt --help` for the current command surface.
+
+For machine-readable command results, prefer:
+
+- `takt concepts --format toon`
+- `takt schema all --format toon`
+- `takt validate all --format toon`
+- `takt run action <name> --format toon`
+- `takt run workflow <name> --format toon`

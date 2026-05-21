@@ -147,10 +147,18 @@ mod tests {
                 .contains("This package is named `@acme/test`.")
         );
         assert!(files[0].contents.contains("`takt concepts --format toon`"));
+        assert!(files[0].contents.contains("## Getting Started"));
+        assert!(files[0].contents.contains("`.agents/skills/takt-workflow/SKILL.md`"));
         assert!(
             files[1]
                 .contents
                 .contains("Prefer CLI TOON output over prose in this file")
+        );
+        assert!(files[1].contents.contains("start -> package_inspected"));
+        assert!(
+            files[3]
+                .contents
+                .contains("Never write an action manifest from scratch.")
         );
     }
 

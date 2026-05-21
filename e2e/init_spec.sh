@@ -121,6 +121,8 @@ Describe 'takt init'
     The output should include "This package is named"
     The output should include "@acme/test"
     The output should include "takt concepts --format toon"
+    The output should include "## Getting Started"
+    The output should include "takt validate all --format toon"
     The output should include ".agents/skills/takt-action/SKILL.md"
   End
 
@@ -128,6 +130,7 @@ Describe 'takt init'
     When call action_skill_after_init "$TEST_WORKSPACE"
     The status should be success
     The output should include "Actions are project-local configured uses of capabilities."
+    The output should include "Never write an action manifest from scratch."
     The output should include "takt schema action --format toon"
     The output should include "Workflows call actions, not capabilities."
   End

@@ -10,6 +10,22 @@ description: >
 Packages are the publishable units in Takt.
 This skill is a routing guide. Treat `takt schema package --format toon` and `takt.json` as the source of truth.
 
+## Critical Rules
+
+- Never put workflow orchestration in `takt.json`. Packages publish capabilities and runtime profiles only.
+- Never let workflow concerns leak into capability definitions through raw step scripts or inline OCI images.
+- If unsure about available fields, run `takt schema package --format toon` instead of guessing.
+- Validate after every meaningful package edit with `takt validate package --format toon`.
+
+## Quick Reference
+
+| Task | Command |
+| --- | --- |
+| Get package schema | `takt schema package --format toon` |
+| Validate package | `takt validate package --format toon` |
+| Inspect concepts | `takt concepts --format toon` |
+| Scaffold package | `takt init <name>` |
+
 ## Responsibilities
 
 - publish capabilities
@@ -33,6 +49,8 @@ This skill is a routing guide. Treat `takt schema package --format toon` and `ta
 3. Runtime profiles should pin Microsandbox OCI images by digest.
 4. Workflow files must never reference package names or container images
    directly.
+5. Capability changes should preserve the distinction between reusable
+   interface and package-local action configuration.
 
 ## Current Command
 
