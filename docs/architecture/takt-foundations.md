@@ -67,10 +67,38 @@ Unlike Swamp, which does not expose a dedicated concepts command, Takt uses
 Every command should support `--format text|json` so agents can request
 structured output without scraping human-oriented tables or status lines.
 
+## Agent Interface
+
+Takt should not treat skills as the canonical product interface.
+
+The authoritative layers should be:
+
+- CLI commands with `--format json` for local scripting and agent use
+- an MCP server later, backed by the same core Rust library, for typed tool use
+- skills only as thin routing, policy, and safety guidance
+
+That means:
+
+- if a fact can come from `takt ... --format json`, keep it out of skills
+- if an operation can be done by a command or MCP tool, skills should point to
+  it rather than re-document it procedurally
+- the CLI and MCP surfaces should evolve together from one implementation, so
+  skills stay stable even as behavior changes
+
+Swamp proves that generated skills are useful, but it also shows the drift risk
+when operational detail lives in markdown instead of the executable interface.
+
+The right Takt shape is:
+
+- commands and tools own behavior
+- schemas and JSON output own structure
+- skills own when to use which command, plus guardrails
+
 `takt init` should also bootstrap project-local agent guidance the way
 `swamp repo init --tool codex` does: an `AGENTS.md` plus `.agents/skills/`
 files that teach an agent how to interact with that initialized package.
 
 The schema command exists because agent-facing tooling should be inspectable.
-Swamp does this with `swamp help ...`, and `mise` does something similar with
-its generated usage specification.
+Swamp does this partly with `swamp help ...`, and `mise` does something similar
+with its generated usage specification. Takt should add a machine-readable CLI
+schema or MCP tool catalog rather than pushing more knowledge into skills.

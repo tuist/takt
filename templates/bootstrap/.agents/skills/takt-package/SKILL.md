@@ -8,6 +8,7 @@ description: >
 # Takt Package
 
 Packages are the publishable units in Takt.
+This skill is a routing guide. Treat `takt schema package --format json` and `package.yaml` as the source of truth.
 
 ## Responsibilities
 

@@ -9,6 +9,7 @@ description: >
 # Takt Getting Started
 
 Use this skill to keep the local package vocabulary consistent.
+Prefer CLI JSON output over prose in this file when the command can answer the question directly.
 
 ## First Steps
 

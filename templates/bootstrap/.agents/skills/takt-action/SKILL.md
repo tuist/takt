@@ -9,6 +9,7 @@ description: >
 # Takt Action
 
 Actions are project-local configured uses of capabilities.
+This skill is a routing guide. Treat `takt schema action --format json` and the action manifest as the source of truth.
 
 ## Responsibilities
 

@@ -8,6 +8,7 @@ description: >
 # Takt Workflow
 
 Workflows compose actions into repeatable operations.
+This skill is a routing guide. Treat `takt schema workflow --format json` and workflow manifests as the source of truth.
 
 ## Responsibilities
 
