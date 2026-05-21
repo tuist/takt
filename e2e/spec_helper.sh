@@ -29,6 +29,16 @@ yaml_query() {
   "$YQ_BIN" -r "$expr" "$file"
 }
 
+json_query_stdin() {
+  local expr="$1"
+  "$YQ_BIN" -p=json -r "$expr" -
+}
+
+yaml_query_stdin() {
+  local expr="$1"
+  "$YQ_BIN" -r "$expr" -
+}
+
 write_stdin_to() {
   mkdir -p "$(dirname "$1")"
   cat >"$1"

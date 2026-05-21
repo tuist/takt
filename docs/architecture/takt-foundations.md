@@ -56,10 +56,16 @@ Python, Bash, or language-specific toolchains.
 
 The current Rust prototype focuses on two foundations:
 
-- `takt concepts` for a stable human-readable glossary
-- `takt schema` for machine-readable JSON Schema output
+- `takt concepts` for a stable glossary of Takt's core nouns
+- `takt schema` for inspectable domain schemas
 - `takt init`, `takt generate action`, and `takt generate workflow` for
   starter manifests
+
+Unlike Swamp, which does not expose a dedicated concepts command, Takt uses
+`takt concepts` as an explicit onboarding surface for both humans and agents.
+
+Every command should support `--format text|json` so agents can request
+structured output without scraping human-oriented tables or status lines.
 
 `takt init` should also bootstrap project-local agent guidance the way
 `swamp repo init --tool codex` does: an `AGENTS.md` plus `.agents/skills/`

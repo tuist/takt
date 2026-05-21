@@ -19,7 +19,7 @@ Workflows compose actions into repeatable operations.
 ## Review Flow
 
 1. Read the relevant file under `workflows/`.
-2. Run `takt schema workflow`.
+2. Run `takt schema workflow --format json`.
 3. Check that every step uses an action reference.
 
 ## Rules

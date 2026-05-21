@@ -19,7 +19,7 @@ Packages are the publishable units in Takt.
 ## Review Flow
 
 1. Read `package.yaml`.
-2. Run `takt schema package`.
+2. Run `takt schema package --format json`.
 3. Confirm every capability references a named runtime profile.
 4. Confirm runtime policy is explicit: image digest, CPU, memory, network, and
    secrets.

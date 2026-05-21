@@ -21,7 +21,7 @@ Actions are project-local configured uses of capabilities.
 ## Review Flow
 
 1. Read the relevant file under `actions/`.
-2. Run `takt schema action`.
+2. Run `takt schema action --format json`.
 3. Confirm the action is configuration, not implementation.
 
 ## Rules

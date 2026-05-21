@@ -10,6 +10,7 @@ use concepts::ConceptsCommand;
 use generate::GenerateCommand;
 use init::InitCommand;
 use schema::SchemaCommand;
+use support::OutputFormat;
 
 #[derive(Debug, Parser)]
 #[command(
@@ -18,17 +19,22 @@ use schema::SchemaCommand;
     arg_required_else_help = true
 )]
 pub struct Cli {
+    /// Output format for command responses
+    #[arg(long, value_enum, global = true, default_value_t = OutputFormat::Text)]
+    format: OutputFormat,
+
     #[command(subcommand)]
     command: Command,
 }
 
 impl Cli {
     pub fn run(self) -> Result<()> {
+        let format = self.format;
         match self.command {
-            Command::Concepts(command) => command.run(),
-            Command::Init(command) => command.run(),
-            Command::Generate(command) => command.run(),
-            Command::Schema(command) => command.run(),
+            Command::Concepts(command) => command.run(format),
+            Command::Init(command) => command.run(format),
+            Command::Generate(command) => command.run(format),
+            Command::Schema(command) => command.run(format),
         }
     }
 }

@@ -1,7 +1,10 @@
-use crate::cli::support::{slugify, write_yaml_file};
+use crate::cli::support::{
+    OutputFormat, WrittenFile, print_json, print_written_files, slugify, write_yaml_file,
+};
 use crate::domain::{ActionDefinition, WorkflowDefinition};
 use clap::{Args, Subcommand};
 use color_eyre::eyre::Result;
+use serde::Serialize;
 use std::path::PathBuf;
 
 #[derive(Debug, Args)]
@@ -12,10 +15,10 @@ pub(crate) struct GenerateCommand {
 }
 
 impl GenerateCommand {
-    pub(crate) fn run(self) -> Result<()> {
+    pub(crate) fn run(self, format: OutputFormat) -> Result<()> {
         match self.command {
-            GenerateSubcommand::Action(command) => command.run(),
-            GenerateSubcommand::Workflow(command) => command.run(),
+            GenerateSubcommand::Action(command) => command.run(format),
+            GenerateSubcommand::Workflow(command) => command.run(format),
         }
     }
 }
@@ -43,12 +46,24 @@ struct GenerateActionCommand {
 }
 
 impl GenerateActionCommand {
-    fn run(self) -> Result<()> {
+    fn run(self, format: OutputFormat) -> Result<()> {
         let output = self
             .output
             .unwrap_or_else(|| PathBuf::from(format!("actions/{}.yaml", slugify(&self.name))));
         let action = ActionDefinition::starter(self.name, self.capability);
-        write_yaml_file(&action, &output, self.force, "action")
+        let written = write_yaml_file(&action, &output, self.force, "action")?;
+
+        match format {
+            OutputFormat::Text => {
+                print_written_files(std::slice::from_ref(&written));
+                Ok(())
+            }
+            OutputFormat::Json => print_json(&ActionGenerateOutput {
+                command: "generate action",
+                action,
+                files: vec![written],
+            }),
+        }
     }
 }
 
@@ -68,11 +83,37 @@ struct GenerateWorkflowCommand {
 }
 
 impl GenerateWorkflowCommand {
-    fn run(self) -> Result<()> {
+    fn run(self, format: OutputFormat) -> Result<()> {
         let output = self
             .output
             .unwrap_or_else(|| PathBuf::from(format!("workflows/{}.yaml", slugify(&self.name))));
         let workflow = WorkflowDefinition::starter(self.name, self.uses);
-        write_yaml_file(&workflow, &output, self.force, "workflow")
+        let written = write_yaml_file(&workflow, &output, self.force, "workflow")?;
+
+        match format {
+            OutputFormat::Text => {
+                print_written_files(std::slice::from_ref(&written));
+                Ok(())
+            }
+            OutputFormat::Json => print_json(&WorkflowGenerateOutput {
+                command: "generate workflow",
+                workflow,
+                files: vec![written],
+            }),
+        }
     }
+}
+
+#[derive(Debug, Serialize)]
+struct ActionGenerateOutput {
+    command: &'static str,
+    action: ActionDefinition,
+    files: Vec<WrittenFile>,
+}
+
+#[derive(Debug, Serialize)]
+struct WorkflowGenerateOutput {
+    command: &'static str,
+    workflow: WorkflowDefinition,
+    files: Vec<WrittenFile>,
 }

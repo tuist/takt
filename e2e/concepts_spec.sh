@@ -1,5 +1,10 @@
 Include e2e/spec_helper.sh
 
+concepts_json_query() {
+  local expr="$1"
+  run_takt --format json concepts | json_query_stdin "$expr"
+}
+
 Describe 'takt concepts'
   It 'prints the canonical object model'
     When call run_takt concepts
@@ -8,10 +13,15 @@ Describe 'takt concepts'
     The output should include "Runtime rule:"
   End
 
-  It 'supports JSON output'
-    When call run_takt concepts --json
+  It 'supports JSON output through the global format flag'
+    When call concepts_json_query '.concepts[0].name'
     The status should be success
-    The output should include '"name": "Package"'
-    The output should include '"name": "Workflow"'
+    The output should equal "Package"
+  End
+
+  It 'includes the full concept chain in JSON output'
+    When call concepts_json_query '.chain'
+    The status should be success
+    The output should equal "package -> capability -> action -> workflow -> run -> artifact"
   End
 End

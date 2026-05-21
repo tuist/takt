@@ -1,18 +1,19 @@
+use crate::cli::support::{OutputFormat, print_json};
 use crate::output::style;
 use crate::output::table::TaktTable;
 use clap::Args;
 use color_eyre::eyre::Result;
 use serde::Serialize;
 
+const CONCEPT_CHAIN: &str = "package -> capability -> action -> workflow -> run -> artifact";
+const RUNTIME_RULE: &str =
+    "capabilities execute on named runtime profiles; workflows never point at images directly.";
+
 #[derive(Debug, Args)]
-pub(crate) struct ConceptsCommand {
-    /// Print the concepts in JSON instead of a table
-    #[arg(long)]
-    json: bool,
-}
+pub(crate) struct ConceptsCommand;
 
 impl ConceptsCommand {
-    pub(crate) fn run(self) -> Result<()> {
+    pub(crate) fn run(self, format: OutputFormat) -> Result<()> {
         let concepts = vec![
             ConceptRow::new(
                 "Package",
@@ -52,16 +53,15 @@ impl ConceptsCommand {
             ),
         ];
 
-        if self.json {
-            println!("{}", serde_json::to_string_pretty(&concepts)?);
-            return Ok(());
+        if format == OutputFormat::Json {
+            return print_json(&ConceptsOutput {
+                chain: CONCEPT_CHAIN,
+                runtime_rule: RUNTIME_RULE,
+                concepts,
+            });
         }
 
-        println!(
-            "{} {}",
-            style::title("Takt"),
-            style::muted("package -> capability -> action -> workflow -> run -> artifact")
-        );
+        println!("{} {}", style::title("Takt"), style::muted(CONCEPT_CHAIN));
         println!();
 
         let mut table = TaktTable::new(&["Concept", "Role", "Scope", "Carries"]);
@@ -71,14 +71,17 @@ impl ConceptsCommand {
         table.print()?;
 
         println!();
-        println!(
-            "{} {}",
-            style::label("Runtime rule:"),
-            "capabilities execute on named runtime profiles; workflows never point at images directly."
-        );
+        println!("{} {}", style::label("Runtime rule:"), RUNTIME_RULE);
 
         Ok(())
     }
+}
+
+#[derive(Debug, Serialize)]
+struct ConceptsOutput {
+    chain: &'static str,
+    runtime_rule: &'static str,
+    concepts: Vec<ConceptRow>,
 }
 
 #[derive(Debug, Serialize)]

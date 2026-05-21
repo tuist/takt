@@ -7,6 +7,13 @@ package_manifest_query_after_init() {
   yaml_query "$dir/package.yaml" "$expr"
 }
 
+init_json_query() {
+  local dir="$1"
+  local expr="$2"
+  run_takt_in "$dir" --format json init @acme/test --description "Test package" |
+    json_query_stdin "$expr"
+}
+
 agents_guide_after_init() {
   local dir="$1"
   run_takt_in "$dir" init @acme/test >/dev/null || return $?
@@ -66,6 +73,18 @@ Describe 'takt init'
     When call package_manifest_query_after_init "$TEST_WORKSPACE" '.package.description'
     The status should be success
     The output should equal "Test package"
+  End
+
+  It 'emits structured JSON when requested'
+    When call init_json_query "$TEST_WORKSPACE" '.package.package.name'
+    The status should be success
+    The output should equal "@acme/test"
+  End
+
+  It 'reports written files in JSON output'
+    When call init_json_query "$TEST_WORKSPACE" '.files[0].path'
+    The status should be success
+    The output should equal "package.yaml"
   End
 
   It 'writes the expected runtime sandbox'

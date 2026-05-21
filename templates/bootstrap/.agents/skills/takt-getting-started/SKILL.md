@@ -13,8 +13,8 @@ Use this skill to keep the local package vocabulary consistent.
 ## First Steps
 
 1. Read `package.yaml`.
-2. Run `takt concepts`.
-3. If the current file shapes matter, run `takt schema all`.
+2. Run `takt concepts --format json`.
+3. If the current file shapes matter, run `takt schema all --format json`.
 4. Explain the nouns in this order:
    `package -> capability -> action -> workflow -> run -> artifact`
 

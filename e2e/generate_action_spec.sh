@@ -14,6 +14,13 @@ custom_action_manifest_query() {
   yaml_query "$dir/custom/action.yaml" "$expr"
 }
 
+action_json_query() {
+  local dir="$1"
+  local expr="$2"
+  run_takt_in "$dir" --format json generate action github-triage @tuist/github#issues.list |
+    json_query_stdin "$expr"
+}
+
 Describe 'takt generate action'
   BeforeEach 'setup_workspace'
   AfterEach 'cleanup_workspace'
@@ -40,6 +47,18 @@ Describe 'takt generate action'
     When call default_action_manifest_query "$TEST_WORKSPACE" '.capability'
     The status should be success
     The output should equal "@tuist/github#issues.list"
+  End
+
+  It 'emits structured JSON when requested'
+    When call action_json_query "$TEST_WORKSPACE" '.action.capability'
+    The status should be success
+    The output should equal "@tuist/github#issues.list"
+  End
+
+  It 'reports the generated file path in JSON output'
+    When call action_json_query "$TEST_WORKSPACE" '.files[0].path'
+    The status should be success
+    The output should equal "actions/github-triage.yaml"
   End
 
   It 'supports a custom output path'

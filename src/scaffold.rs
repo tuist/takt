@@ -71,7 +71,7 @@ This repository is a Takt package named `{package_name}`.\n\n\
 2. Workflows depend on actions, never raw scripts, OCI images, or package names directly.\n\
 3. Capabilities execute on named runtime profiles. Pin Microsandbox OCI images by digest and declare network and secret policy explicitly.\n\
 4. Search the local package manifest before inventing a new capability or action.\n\
-5. If the CLI shape is unclear, inspect it with `takt concepts` and `takt schema all`.\n\n\
+5. If the CLI shape is unclear, inspect it with `takt concepts --format json` and `takt schema all --format json`.\n\n\
 ## Skills\n\n\
 - `.agents/skills/takt-getting-started/SKILL.md`\n\
 - `.agents/skills/takt-package/SKILL.md`\n\

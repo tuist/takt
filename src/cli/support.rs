@@ -1,16 +1,35 @@
 use crate::output::style;
 use crate::scaffold::ScaffoldFile;
+use clap::ValueEnum;
 use color_eyre::eyre::{Result, bail};
 use serde::Serialize;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-pub(crate) fn write_yaml_file<T>(value: &T, output: &Path, force: bool, label: &str) -> Result<()>
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub(crate) enum OutputFormat {
+    Text,
+    Json,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub(crate) struct WrittenFile {
+    pub label: String,
+    pub path: PathBuf,
+}
+
+pub(crate) fn write_yaml_file<T>(
+    value: &T,
+    output: &Path,
+    force: bool,
+    label: &str,
+) -> Result<WrittenFile>
 where
     T: Serialize,
 {
     let file = yaml_scaffold_file(value, output.to_path_buf(), label)?;
-    write_scaffold_files(&[file], force)
+    let mut written = write_scaffold_files(&[file], force)?;
+    Ok(written.remove(0))
 }
 
 pub(crate) fn yaml_scaffold_file<T>(value: &T, output: PathBuf, label: &str) -> Result<ScaffoldFile>
@@ -24,7 +43,10 @@ where
     ))
 }
 
-pub(crate) fn write_scaffold_files(files: &[ScaffoldFile], force: bool) -> Result<()> {
+pub(crate) fn write_scaffold_files(
+    files: &[ScaffoldFile],
+    force: bool,
+) -> Result<Vec<WrittenFile>> {
     for file in files {
         if file.path.exists() && !force {
             bail!(
@@ -35,6 +57,8 @@ pub(crate) fn write_scaffold_files(files: &[ScaffoldFile], force: bool) -> Resul
         }
     }
 
+    let mut written = Vec::with_capacity(files.len());
+
     for file in files {
         if let Some(parent) = file.path.parent() {
             if !parent.as_os_str().is_empty() {
@@ -43,9 +67,38 @@ pub(crate) fn write_scaffold_files(files: &[ScaffoldFile], force: bool) -> Resul
         }
 
         fs::write(&file.path, &file.contents)?;
-        println!("{} {}", style::label("Wrote"), file.path.display());
+        written.push(WrittenFile {
+            label: file.label.clone(),
+            path: file.path.clone(),
+        });
     }
 
+    Ok(written)
+}
+
+pub(crate) fn print_written_files(files: &[WrittenFile]) {
+    for file in files {
+        println!("{} {}", style::label("Wrote"), file.path.display());
+    }
+}
+
+pub(crate) fn print_data<T>(value: &T, format: OutputFormat) -> Result<()>
+where
+    T: Serialize,
+{
+    match format {
+        OutputFormat::Text => print!("{}", serde_yaml::to_string(value)?),
+        OutputFormat::Json => println!("{}", serde_json::to_string_pretty(value)?),
+    }
+
+    Ok(())
+}
+
+pub(crate) fn print_json<T>(value: &T) -> Result<()>
+where
+    T: Serialize,
+{
+    println!("{}", serde_json::to_string_pretty(value)?);
     Ok(())
 }
 

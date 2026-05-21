@@ -1,3 +1,4 @@
+use crate::cli::support::{OutputFormat, print_data};
 use crate::domain::{
     ActionDefinition, CapabilityDefinition, PackageManifest, RuntimeProfile, WorkflowDefinition,
 };
@@ -13,7 +14,7 @@ pub(crate) struct SchemaCommand {
 }
 
 impl SchemaCommand {
-    pub(crate) fn run(self) -> Result<()> {
+    pub(crate) fn run(self, format: OutputFormat) -> Result<()> {
         match self.target {
             SchemaTarget::All => {
                 let bundle = SchemaBundle {
@@ -24,25 +25,24 @@ impl SchemaCommand {
                     workflow: schema_for!(WorkflowDefinition),
                 };
 
-                println!("{}", serde_json::to_string_pretty(&bundle)?);
+                print_data(&bundle, format)?;
             }
-            SchemaTarget::Package => print_schema::<PackageManifest>()?,
-            SchemaTarget::Runtime => print_schema::<RuntimeProfile>()?,
-            SchemaTarget::Capability => print_schema::<CapabilityDefinition>()?,
-            SchemaTarget::Action => print_schema::<ActionDefinition>()?,
-            SchemaTarget::Workflow => print_schema::<WorkflowDefinition>()?,
+            SchemaTarget::Package => print_schema::<PackageManifest>(format)?,
+            SchemaTarget::Runtime => print_schema::<RuntimeProfile>(format)?,
+            SchemaTarget::Capability => print_schema::<CapabilityDefinition>(format)?,
+            SchemaTarget::Action => print_schema::<ActionDefinition>(format)?,
+            SchemaTarget::Workflow => print_schema::<WorkflowDefinition>(format)?,
         }
 
         Ok(())
     }
 }
 
-fn print_schema<T>() -> Result<()>
+fn print_schema<T>(format: OutputFormat) -> Result<()>
 where
     T: schemars::JsonSchema + Serialize,
 {
-    println!("{}", serde_json::to_string_pretty(&schema_for!(T))?);
-    Ok(())
+    print_data(&schema_for!(T), format)
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
