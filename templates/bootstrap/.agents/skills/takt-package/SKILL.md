@@ -8,7 +8,7 @@ description: >
 # Takt Package
 
 Packages are the publishable units in Takt.
-This skill is a routing guide. Treat `takt schema package --format toon` and `package.yaml` as the source of truth.
+This skill is a routing guide. Treat `takt schema package --format toon` and `takt.json` as the source of truth.
 
 ## Responsibilities
 
@@ -19,7 +19,7 @@ This skill is a routing guide. Treat `takt schema package --format toon` and `pa
 
 ## Review Flow
 
-1. Read `package.yaml`.
+1. Read `takt.json`.
 2. Run `takt schema package --format toon`.
 3. Run `takt validate package --format toon`.
 4. Confirm every capability references a named runtime profile.
@@ -37,7 +37,7 @@ This skill is a routing guide. Treat `takt schema package --format toon` and `pa
 ## Current Command
 
 Use `takt init <name>` to scaffold a new package, then edit
-`package.yaml`.
+`takt.json`.
 
 ## Smells
 

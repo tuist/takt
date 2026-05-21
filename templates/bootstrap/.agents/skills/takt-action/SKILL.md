@@ -36,7 +36,7 @@ This skill is a routing guide. Treat `takt schema action --format toon` and the 
 ## Current Command
 
 Use `takt generate action <name> <capability>` to scaffold an action manifest,
-then edit the generated YAML.
+then edit the generated JSON.
 
 ## Smells
 

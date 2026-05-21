@@ -101,7 +101,7 @@ impl TaktMcpServer {
             params
                 .output
                 .map(PathBuf::from)
-                .unwrap_or_else(|| PathBuf::from("package.yaml")),
+                .unwrap_or_else(|| PathBuf::from(crate::core::ROOT_MANIFEST_FILENAME)),
             params.force.unwrap_or(false),
             params.coding_agent.unwrap_or(CodingAgent::Codex),
         )

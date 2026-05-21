@@ -13,7 +13,7 @@ Prefer CLI TOON output over prose in this file when the command can answer the q
 
 ## First Steps
 
-1. Read `package.yaml`.
+1. Read `takt.json`.
 2. Run `takt concepts --format toon`.
 3. If the current file shapes matter, run `takt schema all --format toon`.
 4. If the package already has actions or workflows, run `takt validate all --format toon`.
@@ -22,9 +22,9 @@ Prefer CLI TOON output over prose in this file when the command can answer the q
 
 ## Local Files
 
-- `package.yaml`
-- `actions/*.yaml`
-- `workflows/*.yaml`
+- `takt.json`
+- `actions/*.json`
+- `workflows/*.json`
 
 ## Routing
 

@@ -35,7 +35,7 @@ This skill is a routing guide. Treat `takt schema workflow --format toon` and wo
 ## Current Command
 
 Use `takt generate workflow <name> --uses <action>` to scaffold a workflow
-manifest, then edit the generated YAML.
+manifest, then edit the generated JSON.
 
 ## Smells
 

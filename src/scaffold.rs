@@ -104,7 +104,7 @@ mod tests {
     #[test]
     fn package_project_root_defaults_to_current_directory() {
         assert_eq!(
-            package_project_root(Path::new("package.yaml")),
+            package_project_root(Path::new("takt.json")),
             PathBuf::from(".")
         );
     }
@@ -112,7 +112,7 @@ mod tests {
     #[test]
     fn package_project_root_uses_manifest_parent_directory() {
         assert_eq!(
-            package_project_root(Path::new("packages/example/package.yaml")),
+            package_project_root(Path::new("packages/example/takt.json")),
             PathBuf::from("packages/example")
         );
     }

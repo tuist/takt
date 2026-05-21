@@ -28,20 +28,15 @@ cat_file() {
   cat "$1"
 }
 
-yaml_query() {
+json_query() {
   local file="$1"
   local expr="$2"
-  "$YQ_BIN" -r "$expr" "$file"
+  "$YQ_BIN" -p=json -o=json -r "$expr" "$file"
 }
 
 json_query_stdin() {
   local expr="$1"
-  "$YQ_BIN" -p=json -r "$expr" -
-}
-
-yaml_query_stdin() {
-  local expr="$1"
-  "$YQ_BIN" -r "$expr" -
+  "$YQ_BIN" -p=json -o=json -r "$expr" -
 }
 
 write_stdin_to() {

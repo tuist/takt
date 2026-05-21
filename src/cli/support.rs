@@ -17,35 +17,56 @@ pub(crate) struct CommandContext {
     pub package_dir: Option<PathBuf>,
 }
 
-pub(crate) fn print_written_files(files: &[crate::core::WrittenFile]) {
+pub(crate) fn written_files_summary(files: &[crate::core::WrittenFile]) -> String {
+    let mut summary = String::new();
+
     for file in files {
-        println!("{} {}", style::label("Wrote"), file.path.display());
+        summary.push_str(&format!(
+            "{} {}\n",
+            style::label("Wrote"),
+            file.path.display()
+        ));
     }
+
+    summary
+}
+
+pub(crate) fn data_string<T>(value: &T, format: OutputFormat) -> Result<String>
+where
+    T: Serialize,
+{
+    Ok(match format {
+        OutputFormat::Text | OutputFormat::Json => {
+            format!("{}\n", serde_json::to_string_pretty(value)?)
+        }
+        OutputFormat::Toon => format!("{}\n", serde_json::to_string(value)?),
+    })
 }
 
 pub(crate) fn print_data<T>(value: &T, format: OutputFormat) -> Result<()>
 where
     T: Serialize,
 {
-    match format {
-        OutputFormat::Text => print!("{}", serde_yaml::to_string(value)?),
-        OutputFormat::Json => println!("{}", serde_json::to_string_pretty(value)?),
-        OutputFormat::Toon => println!("{}", serde_json::to_string(value)?),
-    }
-
+    print!("{}", data_string(value, format)?);
     Ok(())
+}
+
+pub(crate) fn structured_json_string<T>(value: &T, format: OutputFormat) -> Result<String>
+where
+    T: Serialize,
+{
+    Ok(match format {
+        OutputFormat::Toon => format!("{}\n", serde_json::to_string(value)?),
+        OutputFormat::Text | OutputFormat::Json => {
+            format!("{}\n", serde_json::to_string_pretty(value)?)
+        }
+    })
 }
 
 pub(crate) fn print_structured_json<T>(value: &T, format: OutputFormat) -> Result<()>
 where
     T: Serialize,
 {
-    match format {
-        OutputFormat::Toon => println!("{}", serde_json::to_string(value)?),
-        OutputFormat::Text | OutputFormat::Json => {
-            println!("{}", serde_json::to_string_pretty(value)?)
-        }
-    }
-
+    print!("{}", structured_json_string(value, format)?);
     Ok(())
 }

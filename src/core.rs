@@ -17,6 +17,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 pub const CONCEPT_CHAIN: &str = "package -> capability -> action -> workflow -> run -> artifact";
 pub const RUNTIME_RULE: &str =
     "capabilities execute on named runtime profiles; workflows never point at images directly.";
+pub const ROOT_MANIFEST_FILENAME: &str = "takt.json";
+pub const MANIFEST_EXTENSION: &str = "json";
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct ConceptsOutput {
@@ -150,23 +152,23 @@ pub struct WrittenFile {
     pub path: PathBuf,
 }
 
-pub fn write_yaml_file<T>(value: &T, output: &Path, force: bool, label: &str) -> Result<WrittenFile>
+pub fn write_json_file<T>(value: &T, output: &Path, force: bool, label: &str) -> Result<WrittenFile>
 where
     T: Serialize,
 {
-    let file = yaml_scaffold_file(value, output.to_path_buf(), label)?;
+    let file = json_scaffold_file(value, output.to_path_buf(), label)?;
     let mut written = write_scaffold_files(&[file], force)?;
     Ok(written.remove(0))
 }
 
-pub fn yaml_scaffold_file<T>(value: &T, output: PathBuf, label: &str) -> Result<ScaffoldFile>
+pub fn json_scaffold_file<T>(value: &T, output: PathBuf, label: &str) -> Result<ScaffoldFile>
 where
     T: Serialize,
 {
     Ok(ScaffoldFile::new(
         output,
         label,
-        serde_yaml::to_string(value)?,
+        format!("{}\n", serde_json::to_string_pretty(value)?),
     ))
 }
 
@@ -235,7 +237,7 @@ pub fn init_package(
 ) -> Result<InitOutput> {
     let project_root = package_project_root(&output);
     let manifest = PackageManifest::starter(name.clone(), description);
-    let mut files = vec![yaml_scaffold_file(&manifest, output, "package")?];
+    let mut files = vec![json_scaffold_file(&manifest, output, "package")?];
     files.extend(package_bootstrap_files(&project_root, &name, coding_agent));
     let written = write_scaffold_files(&files, force)?;
 
@@ -260,10 +262,11 @@ pub fn generate_action(
     output: Option<PathBuf>,
     force: bool,
 ) -> Result<ActionGenerateOutput> {
-    let output =
-        output.unwrap_or_else(|| PathBuf::from(format!("actions/{}.yaml", slugify(&name))));
+    let output = output.unwrap_or_else(|| {
+        PathBuf::from(format!("actions/{}.{}", slugify(&name), MANIFEST_EXTENSION))
+    });
     let action = ActionDefinition::starter(name, capability);
-    let written = write_yaml_file(&action, &output, force, "action")?;
+    let written = write_json_file(&action, &output, force, "action")?;
 
     Ok(ActionGenerateOutput {
         command: "generate action",
@@ -285,10 +288,15 @@ pub fn generate_workflow(
     output: Option<PathBuf>,
     force: bool,
 ) -> Result<WorkflowGenerateOutput> {
-    let output =
-        output.unwrap_or_else(|| PathBuf::from(format!("workflows/{}.yaml", slugify(&name))));
+    let output = output.unwrap_or_else(|| {
+        PathBuf::from(format!(
+            "workflows/{}.{}",
+            slugify(&name),
+            MANIFEST_EXTENSION
+        ))
+    });
     let workflow = WorkflowDefinition::starter(name, uses);
-    let written = write_yaml_file(&workflow, &output, force, "workflow")?;
+    let written = write_json_file(&workflow, &output, force, "workflow")?;
 
     Ok(WorkflowGenerateOutput {
         command: "generate workflow",
@@ -318,8 +326,8 @@ pub struct WorkflowDocument {
 
 pub fn discover_repository(start: impl AsRef<Path>) -> Result<Repository> {
     let root = find_repo_root(start.as_ref())?;
-    let package_path = root.join("package.yaml");
-    let package = read_yaml_file(&package_path)?;
+    let package_path = root.join(ROOT_MANIFEST_FILENAME);
+    let package = read_json_file(&package_path)?;
     Ok(Repository {
         root,
         package_path,
@@ -329,13 +337,13 @@ pub fn discover_repository(start: impl AsRef<Path>) -> Result<Repository> {
 
 pub fn load_action(repo: &Repository, selector: &str) -> Result<ActionDocument> {
     let path = resolve_manifest_path(&repo.root, "actions", selector, "action")?;
-    let action = read_yaml_file(&path)?;
+    let action = read_json_file(&path)?;
     Ok(ActionDocument { path, action })
 }
 
 pub fn load_workflow(repo: &Repository, selector: &str) -> Result<WorkflowDocument> {
     let path = resolve_manifest_path(&repo.root, "workflows", selector, "workflow")?;
-    let workflow = read_yaml_file(&path)?;
+    let workflow = read_json_file(&path)?;
     Ok(WorkflowDocument { path, workflow })
 }
 
@@ -469,7 +477,7 @@ pub fn validate_action_document(repo: &Repository, document: &ActionDocument) ->
         CapabilityResolution::MissingLocal { reference } => simple_check(
             format!("Local capability '{}' exists in package", reference),
             false,
-            format!("capability '{reference}' is not defined in package.yaml"),
+            format!("capability '{reference}' is not defined in {ROOT_MANIFEST_FILENAME}"),
         ),
     });
 
@@ -477,7 +485,7 @@ pub fn validate_action_document(repo: &Repository, document: &ActionDocument) ->
         checks.push(simple_check(
             format!("Runtime override '{}' exists in package", runtime),
             repo.package.runtimes.contains_key(runtime),
-            format!("runtime override '{runtime}' is not defined in package.yaml"),
+            format!("runtime override '{runtime}' is not defined in {ROOT_MANIFEST_FILENAME}"),
         ));
     }
 
@@ -572,7 +580,7 @@ pub fn validate_all(repo: &Repository) -> Result<ValidationSummary> {
 
     for path in list_manifest_files(repo.root.join("actions"))? {
         let action = ActionDocument {
-            action: read_yaml_file(&path)?,
+            action: read_json_file(&path)?,
             path,
         };
         reports.push(validate_action_document(repo, &action));
@@ -580,7 +588,7 @@ pub fn validate_all(repo: &Repository) -> Result<ValidationSummary> {
 
     for path in list_manifest_files(repo.root.join("workflows"))? {
         let workflow = WorkflowDocument {
-            workflow: read_yaml_file(&path)?,
+            workflow: read_json_file(&path)?,
             path,
         };
         reports.push(validate_workflow_document(repo, &workflow));
@@ -850,13 +858,14 @@ fn find_repo_root(start: &Path) -> Result<PathBuf> {
     };
 
     for candidate in start.ancestors() {
-        if candidate.join("package.yaml").exists() {
+        if candidate.join(ROOT_MANIFEST_FILENAME).exists() {
             return Ok(candidate.to_path_buf());
         }
     }
 
     bail!(
-        "not a Takt package: no package.yaml found from {} upward",
+        "not a Takt package: no {} found from {} upward",
+        ROOT_MANIFEST_FILENAME,
         start.display()
     )
 }
@@ -872,15 +881,15 @@ fn resolve_manifest_path(
         return Ok(fs::canonicalize(selector_path)?);
     }
 
-    let candidate = root
-        .join(directory)
-        .join(format!("{}.yaml", slugify(selector)));
+    let candidate =
+        root.join(directory)
+            .join(format!("{}.{}", slugify(selector), MANIFEST_EXTENSION));
     if candidate.exists() {
         return Ok(candidate);
     }
 
     for path in list_manifest_files(root.join(directory))? {
-        let value: Value = read_yaml_file(&path)?;
+        let value: Value = read_json_file(&path)?;
         if value
             .get("name")
             .and_then(Value::as_str)
@@ -911,7 +920,7 @@ fn list_manifest_files(dir: PathBuf) -> Result<Vec<PathBuf>> {
             && path
                 .extension()
                 .and_then(|extension| extension.to_str())
-                .is_some_and(|extension| extension == "yaml" || extension == "yml")
+                .is_some_and(|extension| extension == MANIFEST_EXTENSION)
         {
             files.push(path);
         }
@@ -920,11 +929,11 @@ fn list_manifest_files(dir: PathBuf) -> Result<Vec<PathBuf>> {
     Ok(files)
 }
 
-fn read_yaml_file<T>(path: &Path) -> Result<T>
+fn read_json_file<T>(path: &Path) -> Result<T>
 where
     T: serde::de::DeserializeOwned,
 {
-    Ok(serde_yaml::from_str(&fs::read_to_string(path)?)?)
+    Ok(serde_json::from_str(&fs::read_to_string(path)?)?)
 }
 
 fn validation_report(

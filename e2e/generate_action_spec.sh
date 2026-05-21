@@ -4,14 +4,14 @@ default_action_manifest_query() {
   local dir="$1"
   local expr="$2"
   run_takt_in "$dir" generate action github-triage @tuist/github#issues.list >/dev/null || return $?
-  yaml_query "$dir/actions/github-triage.yaml" "$expr"
+  json_query "$dir/actions/github-triage.json" "$expr"
 }
 
 custom_action_manifest_query() {
   local dir="$1"
   local expr="$2"
-  run_takt generate action github-triage @tuist/github#issues.list --output "$dir/custom/action.yaml" >/dev/null || return $?
-  yaml_query "$dir/custom/action.yaml" "$expr"
+  run_takt generate action github-triage @tuist/github#issues.list --output "$dir/custom/action.json" >/dev/null || return $?
+  json_query "$dir/custom/action.json" "$expr"
 }
 
 action_json_query() {
@@ -28,7 +28,7 @@ Describe 'takt generate action'
   It 'creates an action scaffold under actions/ by default'
     When call run_takt_in "$TEST_WORKSPACE" generate action github-triage @tuist/github#issues.list
     The status should be success
-    The output should include "actions/github-triage.yaml"
+    The output should include "actions/github-triage.json"
   End
 
   It 'writes the expected action manifest'
@@ -58,7 +58,7 @@ Describe 'takt generate action'
   It 'reports the generated file path in JSON output'
     When call action_json_query "$TEST_WORKSPACE" '.files[0].path'
     The status should be success
-    The output should equal "actions/github-triage.yaml"
+    The output should equal "actions/github-triage.json"
   End
 
   It 'supports a custom output path'
@@ -67,7 +67,7 @@ Describe 'takt generate action'
     The output should equal "Action"
   End
 
-  It 'writes valid YAML to a custom output path'
+  It 'writes valid JSON to a custom output path'
     When call custom_action_manifest_query "$TEST_WORKSPACE" '.name'
     The status should be success
     The output should equal "github-triage"

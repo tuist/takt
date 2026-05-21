@@ -104,7 +104,7 @@ mcp_package_init_without_agents() {
   local initialized_body="$dir/initialized.body"
   local call_headers="$dir/call.headers"
   local call_body="$dir/call.body"
-  local output="$dir/custom/package.yaml"
+  local output="$dir/custom/takt.json"
 
   start_takt_mcp_http "$dir" || return $?
   local url

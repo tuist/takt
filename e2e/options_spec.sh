@@ -24,13 +24,13 @@ init_description_via_env() {
       TAKT_INIT_DESCRIPTION="From env" \
       "$CARGO_BIN" run --quiet --bin takt --manifest-path "$TAKT_ROOT/Cargo.toml" -- init @acme/test >/dev/null
   ) || return $?
-  yaml_query "$dir/package.yaml" '.package.description'
+  json_query "$dir/takt.json" '.package.description'
 }
 
 generate_workflow_uses_via_short_flag() {
   local dir="$1"
   run_takt_in "$dir" generate workflow daily-triage -u github-triage >/dev/null || return $?
-  yaml_query "$dir/workflows/daily-triage.yaml" '.steps[0].uses'
+  json_query "$dir/workflows/daily-triage.json" '.steps[0].uses'
 }
 
 run_action_input_via_env() {

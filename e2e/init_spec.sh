@@ -4,7 +4,7 @@ package_manifest_query_after_init() {
   local dir="$1"
   local expr="$2"
   run_takt_in "$dir" init @acme/test --description "Test package" >/dev/null || return $?
-  yaml_query "$dir/package.yaml" "$expr"
+  json_query "$dir/takt.json" "$expr"
 }
 
 init_json_query() {
@@ -38,7 +38,7 @@ coding_agent_none_after_init() {
 
 custom_root_agents_after_init() {
   local dir="$1"
-  run_takt init @acme/test --output "$dir/bootstrap/package.yaml" >/dev/null || return $?
+  run_takt init @acme/test --output "$dir/bootstrap/takt.json" >/dev/null || return $?
   cat_file "$dir/bootstrap/AGENTS.md"
 }
 
@@ -62,7 +62,7 @@ Describe 'takt init'
   It 'creates a package scaffold at the default path'
     When call run_takt_in "$TEST_WORKSPACE" init @acme/test --description "Test package"
     The status should be success
-    The output should include "Wrote package.yaml"
+    The output should include "Wrote takt.json"
     The output should include "Wrote AGENTS.md"
     The output should include ".agents/skills/takt-getting-started/SKILL.md"
   End
@@ -100,7 +100,7 @@ Describe 'takt init'
   It 'reports written files in JSON output'
     When call init_json_query "$TEST_WORKSPACE" '.files[0].path'
     The status should be success
-    The output should equal "package.yaml"
+    The output should equal "takt.json"
   End
 
   It 'writes the expected runtime sandbox'

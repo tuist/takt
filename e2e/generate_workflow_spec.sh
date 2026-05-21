@@ -4,14 +4,14 @@ default_workflow_manifest_query() {
   local dir="$1"
   local expr="$2"
   run_takt_in "$dir" generate workflow daily-triage --uses github-triage >/dev/null || return $?
-  yaml_query "$dir/workflows/daily-triage.yaml" "$expr"
+  json_query "$dir/workflows/daily-triage.json" "$expr"
 }
 
 custom_workflow_manifest_query() {
   local dir="$1"
   local expr="$2"
-  run_takt generate workflow daily-triage --uses github-triage --output "$dir/custom/workflow.yaml" >/dev/null || return $?
-  yaml_query "$dir/custom/workflow.yaml" "$expr"
+  run_takt generate workflow daily-triage --uses github-triage --output "$dir/custom/workflow.json" >/dev/null || return $?
+  json_query "$dir/custom/workflow.json" "$expr"
 }
 
 workflow_json_query() {
@@ -28,7 +28,7 @@ Describe 'takt generate workflow'
   It 'creates a workflow scaffold under workflows/ by default'
     When call run_takt_in "$TEST_WORKSPACE" generate workflow daily-triage --uses github-triage
     The status should be success
-    The output should include "workflows/daily-triage.yaml"
+    The output should include "workflows/daily-triage.json"
   End
 
   It 'writes the expected workflow manifest'
@@ -64,7 +64,7 @@ Describe 'takt generate workflow'
   It 'reports the generated file path in JSON output'
     When call workflow_json_query "$TEST_WORKSPACE" '.files[0].path'
     The status should be success
-    The output should equal "workflows/daily-triage.yaml"
+    The output should equal "workflows/daily-triage.json"
   End
 
   It 'supports a custom output path'
@@ -73,7 +73,7 @@ Describe 'takt generate workflow'
     The output should equal "Workflow"
   End
 
-  It 'writes valid YAML to a custom output path'
+  It 'writes valid JSON to a custom output path'
     When call custom_workflow_manifest_query "$TEST_WORKSPACE" '.name'
     The status should be success
     The output should equal "daily-triage"
