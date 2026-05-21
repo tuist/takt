@@ -1,9 +1,19 @@
+use clap::ValueEnum;
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
 pub struct ScaffoldFile {
     pub label: String,
     pub path: PathBuf,
     pub contents: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ValueEnum, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum CodingAgent {
+    Codex,
+    None,
 }
 
 impl ScaffoldFile {
@@ -24,7 +34,18 @@ pub fn package_project_root(output: &Path) -> PathBuf {
         .unwrap_or_else(|| PathBuf::from("."))
 }
 
-pub fn package_bootstrap_files(project_root: &Path, package_name: &str) -> Vec<ScaffoldFile> {
+pub fn package_bootstrap_files(
+    project_root: &Path,
+    package_name: &str,
+    coding_agent: CodingAgent,
+) -> Vec<ScaffoldFile> {
+    match coding_agent {
+        CodingAgent::Codex => codex_bootstrap_files(project_root, package_name),
+        CodingAgent::None => Vec::new(),
+    }
+}
+
+fn codex_bootstrap_files(project_root: &Path, package_name: &str) -> Vec<ScaffoldFile> {
     vec![
         ScaffoldFile::new(
             project_path(project_root, "AGENTS.md"),

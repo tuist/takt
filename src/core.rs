@@ -2,7 +2,7 @@ use crate::domain::{
     API_VERSION, ActionDefinition, CapabilityDefinition, HandlerDefinition, NetworkMode,
     PackageManifest, RuntimeProfile, WorkflowDefinition,
 };
-use crate::scaffold::{ScaffoldFile, package_bootstrap_files, package_project_root};
+use crate::scaffold::{CodingAgent, ScaffoldFile, package_bootstrap_files, package_project_root};
 use clap::ValueEnum;
 use color_eyre::eyre::{Result, bail, eyre};
 use schemars::Schema;
@@ -221,6 +221,7 @@ pub fn slugify(input: &str) -> String {
 #[derive(Debug, Serialize)]
 pub struct InitOutput {
     pub command: &'static str,
+    pub coding_agent: CodingAgent,
     pub package: PackageManifest,
     pub files: Vec<WrittenFile>,
 }
@@ -230,15 +231,17 @@ pub fn init_package(
     description: Option<String>,
     output: PathBuf,
     force: bool,
+    coding_agent: CodingAgent,
 ) -> Result<InitOutput> {
     let project_root = package_project_root(&output);
     let manifest = PackageManifest::starter(name.clone(), description);
     let mut files = vec![yaml_scaffold_file(&manifest, output, "package")?];
-    files.extend(package_bootstrap_files(&project_root, &name));
+    files.extend(package_bootstrap_files(&project_root, &name, coding_agent));
     let written = write_scaffold_files(&files, force)?;
 
     Ok(InitOutput {
         command: "init",
+        coding_agent,
         package: manifest,
         files: written,
     })

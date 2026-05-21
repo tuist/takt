@@ -10,7 +10,8 @@ package_manifest_query_after_init() {
 init_json_query() {
   local dir="$1"
   local expr="$2"
-  run_takt_in "$dir" --format json init @acme/test --description "Test package" |
+  shift 2
+  run_takt_in "$dir" --format json init @acme/test --description "Test package" "$@" |
     json_query_stdin "$expr"
 }
 
@@ -24,6 +25,15 @@ action_skill_after_init() {
   local dir="$1"
   run_takt_in "$dir" init @acme/test >/dev/null || return $?
   cat_file "$dir/.agents/skills/takt-action/SKILL.md"
+}
+
+coding_agent_none_after_init() {
+  local dir="$1"
+  run_takt_in "$dir" init @acme/test --coding-agent none >/dev/null || return $?
+  if [ -e "$dir/AGENTS.md" ] || [ -d "$dir/.agents" ]; then
+    printf 'unexpected coding-agent bootstrap files present\n'
+    return 1
+  fi
 }
 
 custom_root_agents_after_init() {
@@ -81,6 +91,12 @@ Describe 'takt init'
     The output should equal "@acme/test"
   End
 
+  It 'defaults to the codex coding agent bootstrap'
+    When call init_json_query "$TEST_WORKSPACE" '.coding_agent'
+    The status should be success
+    The output should equal "codex"
+  End
+
   It 'reports written files in JSON output'
     When call init_json_query "$TEST_WORKSPACE" '.files[0].path'
     The status should be success
@@ -114,6 +130,17 @@ Describe 'takt init'
     The output should include "Actions are project-local configured uses of capabilities."
     The output should include "takt schema action"
     The output should include "Workflows call actions, not capabilities."
+  End
+
+  It 'can disable coding-agent bootstrap files'
+    When call coding_agent_none_after_init "$TEST_WORKSPACE"
+    The status should be success
+  End
+
+  It 'reports no coding agent when bootstrap is disabled'
+    When call init_json_query "$TEST_WORKSPACE" '.coding_agent' --coding-agent none
+    The status should be success
+    The output should equal "none"
   End
 
   It 'writes bootstrap files relative to a custom manifest path'

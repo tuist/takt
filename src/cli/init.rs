@@ -1,5 +1,6 @@
 use crate::cli::support::{CommandContext, OutputFormat, print_json, print_written_files};
 use crate::core;
+use crate::scaffold::CodingAgent;
 use clap::Args;
 use color_eyre::eyre::Result;
 use std::path::PathBuf;
@@ -14,6 +15,9 @@ pub(crate) struct InitCommand {
     /// Output path for the package manifest
     #[arg(short, long, default_value = "package.yaml", value_name = "PATH")]
     output: PathBuf,
+    /// Coding-agent bootstrap to write into the repository
+    #[arg(long, value_enum, default_value_t = CodingAgent::Codex)]
+    coding_agent: CodingAgent,
     /// Overwrite an existing file
     #[arg(long)]
     force: bool,
@@ -21,7 +25,13 @@ pub(crate) struct InitCommand {
 
 impl InitCommand {
     pub(crate) fn run(self, context: CommandContext) -> Result<()> {
-        let output = core::init_package(self.name, self.description, self.output, self.force)?;
+        let output = core::init_package(
+            self.name,
+            self.description,
+            self.output,
+            self.force,
+            self.coding_agent,
+        )?;
 
         match context.format {
             OutputFormat::Text => {

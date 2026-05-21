@@ -1,4 +1,4 @@
-use crate::cli::support::{CommandContext, print_data};
+use crate::cli::support::{CommandContext, print_pretty_json};
 use crate::core::{self, SchemaTarget};
 use clap::Args;
 use color_eyre::eyre::Result;
@@ -11,6 +11,7 @@ pub(crate) struct SchemaCommand {
 
 impl SchemaCommand {
     pub(crate) fn run(self, context: CommandContext) -> Result<()> {
-        print_data(&core::schema_for_target(self.target), context.format)
+        let _ = context;
+        print_pretty_json(&core::schema_for_target(self.target))
     }
 }

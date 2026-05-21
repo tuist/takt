@@ -97,8 +97,9 @@ The right Takt shape is:
 - skills own when to use which command, plus guardrails
 
 `takt init` should also bootstrap project-local agent guidance the way
-`swamp repo init --tool codex` does: an `AGENTS.md` plus `.agents/skills/`
-files that teach an agent how to interact with that initialized package.
+`swamp repo init --tool codex` does, but with Takt's clearer
+`--coding-agent codex` naming: an `AGENTS.md` plus `.agents/skills/` files
+that teach an agent how to interact with that initialized package.
 
 The schema command exists because agent-facing tooling should be inspectable.
 Swamp does this partly with `swamp help ...`, and `mise` does something similar
