@@ -1,4 +1,5 @@
-use crate::mcp::helpers::{json_result, json_value, load_repo};
+use crate::mcp::helpers::{load_repo, tool_error};
+use crate::mcp::output::SchemaGetOutput;
 use crate::mcp::params::{
     ActionGenerateParams, ActionSelectorParams, RepoInitParams, RepoScopedParams, RunPlanParams,
     SchemaGetParams, WorkflowGenerateParams, WorkflowSelectorParams,
@@ -6,16 +7,15 @@ use crate::mcp::params::{
 use crate::scaffold::CodingAgent;
 use color_eyre::eyre::Result;
 use rmcp::{
-    Json, ServerHandler, ServiceExt,
+    ErrorData, Json, ServerHandler, ServiceExt,
     handler::server::{router::tool::ToolRouter, wrapper::Parameters},
     tool, tool_handler, tool_router,
     transport::stdio,
 };
-use serde_json::Value;
 use std::path::PathBuf;
 
 #[derive(Debug, Clone)]
-struct TaktMcpServer {
+pub(super) struct TaktMcpServer {
     tool_router: ToolRouter<Self>,
 }
 
@@ -25,6 +25,10 @@ impl TaktMcpServer {
             tool_router: Self::tool_router(),
         }
     }
+}
+
+pub(super) fn new_server() -> TaktMcpServer {
+    TaktMcpServer::new()
 }
 
 impl Default for TaktMcpServer {
@@ -47,8 +51,8 @@ impl TaktMcpServer {
         name = "concepts_get",
         description = "Get the canonical Takt object model and runtime rule"
     )]
-    async fn concepts_get(&self) -> Result<Json<Value>, String> {
-        json_value(crate::core::concepts())
+    async fn concepts_get(&self) -> Result<Json<crate::core::ConceptsOutput>, ErrorData> {
+        Ok(Json(crate::core::concepts()))
     }
 
     #[tool(
@@ -58,8 +62,9 @@ impl TaktMcpServer {
     async fn schema_get(
         &self,
         Parameters(params): Parameters<SchemaGetParams>,
-    ) -> Result<Json<Value>, String> {
-        let target = match params.target.as_deref().unwrap_or("all") {
+    ) -> Result<Json<SchemaGetOutput>, ErrorData> {
+        let target_name = params.target.unwrap_or_else(|| "all".to_string());
+        let target = match target_name.as_str() {
             "all" => crate::core::SchemaTarget::All,
             "package" => crate::core::SchemaTarget::Package,
             "runtime" => crate::core::SchemaTarget::Runtime,
@@ -67,13 +72,19 @@ impl TaktMcpServer {
             "action" => crate::core::SchemaTarget::Action,
             "workflow" => crate::core::SchemaTarget::Workflow,
             other => {
-                return Err(format!(
-                    "invalid schema target '{other}', expected one of all, package, runtime, capability, action, workflow"
+                return Err(ErrorData::invalid_params(
+                    format!(
+                        "invalid schema target '{other}', expected one of all, package, runtime, capability, action, workflow"
+                    ),
+                    None,
                 ));
             }
         };
 
-        Ok(Json(crate::core::schema_for_target(target)))
+        Ok(Json(SchemaGetOutput {
+            target: target_name,
+            schema: crate::core::schema_for_target(target),
+        }))
     }
 
     #[tool(
@@ -83,8 +94,8 @@ impl TaktMcpServer {
     async fn repo_init(
         &self,
         Parameters(params): Parameters<RepoInitParams>,
-    ) -> Result<Json<Value>, String> {
-        json_result(crate::core::init_package(
+    ) -> Result<Json<crate::core::InitOutput>, ErrorData> {
+        crate::core::init_package(
             params.name,
             params.description,
             params
@@ -93,7 +104,9 @@ impl TaktMcpServer {
                 .unwrap_or_else(|| PathBuf::from("package.yaml")),
             params.force.unwrap_or(false),
             params.coding_agent.unwrap_or(CodingAgent::Codex),
-        ))
+        )
+        .map(Json)
+        .map_err(tool_error)
     }
 
     #[tool(
@@ -103,13 +116,15 @@ impl TaktMcpServer {
     async fn action_generate(
         &self,
         Parameters(params): Parameters<ActionGenerateParams>,
-    ) -> Result<Json<Value>, String> {
-        json_result(crate::core::generate_action(
+    ) -> Result<Json<crate::core::ActionGenerateOutput>, ErrorData> {
+        crate::core::generate_action(
             params.name,
             params.capability,
             params.output.map(PathBuf::from),
             params.force.unwrap_or(false),
-        ))
+        )
+        .map(Json)
+        .map_err(tool_error)
     }
 
     #[tool(
@@ -119,13 +134,15 @@ impl TaktMcpServer {
     async fn workflow_generate(
         &self,
         Parameters(params): Parameters<WorkflowGenerateParams>,
-    ) -> Result<Json<Value>, String> {
-        json_result(crate::core::generate_workflow(
+    ) -> Result<Json<crate::core::WorkflowGenerateOutput>, ErrorData> {
+        crate::core::generate_workflow(
             params.name,
             params.uses,
             params.output.map(PathBuf::from),
             params.force.unwrap_or(false),
-        ))
+        )
+        .map(Json)
+        .map_err(tool_error)
     }
 
     #[tool(
@@ -135,9 +152,9 @@ impl TaktMcpServer {
     async fn package_validate(
         &self,
         Parameters(params): Parameters<RepoScopedParams>,
-    ) -> Result<Json<Value>, String> {
-        let repo = load_repo(params.repo_dir)?;
-        json_value(crate::core::validate_package(&repo))
+    ) -> Result<Json<crate::core::ValidationReport>, ErrorData> {
+        let repo = load_repo(params.repo_dir).map_err(tool_error)?;
+        Ok(Json(crate::core::validate_package(&repo)))
     }
 
     #[tool(
@@ -147,11 +164,10 @@ impl TaktMcpServer {
     async fn action_validate(
         &self,
         Parameters(params): Parameters<ActionSelectorParams>,
-    ) -> Result<Json<Value>, String> {
-        let repo = load_repo(params.repo_dir)?;
-        let action = crate::core::load_action(&repo, &params.selector)
-            .map_err(crate::mcp::helpers::to_string)?;
-        json_value(crate::core::validate_action_document(&repo, &action))
+    ) -> Result<Json<crate::core::ValidationReport>, ErrorData> {
+        let repo = load_repo(params.repo_dir).map_err(tool_error)?;
+        let action = crate::core::load_action(&repo, &params.selector).map_err(tool_error)?;
+        Ok(Json(crate::core::validate_action_document(&repo, &action)))
     }
 
     #[tool(
@@ -161,11 +177,12 @@ impl TaktMcpServer {
     async fn workflow_validate(
         &self,
         Parameters(params): Parameters<WorkflowSelectorParams>,
-    ) -> Result<Json<Value>, String> {
-        let repo = load_repo(params.repo_dir)?;
-        let workflow = crate::core::load_workflow(&repo, &params.selector)
-            .map_err(crate::mcp::helpers::to_string)?;
-        json_value(crate::core::validate_workflow_document(&repo, &workflow))
+    ) -> Result<Json<crate::core::ValidationReport>, ErrorData> {
+        let repo = load_repo(params.repo_dir).map_err(tool_error)?;
+        let workflow = crate::core::load_workflow(&repo, &params.selector).map_err(tool_error)?;
+        Ok(Json(crate::core::validate_workflow_document(
+            &repo, &workflow,
+        )))
     }
 
     #[tool(
@@ -175,9 +192,11 @@ impl TaktMcpServer {
     async fn validate_all(
         &self,
         Parameters(params): Parameters<RepoScopedParams>,
-    ) -> Result<Json<Value>, String> {
-        let repo = load_repo(params.repo_dir)?;
-        json_result(crate::core::validate_all(&repo))
+    ) -> Result<Json<crate::core::ValidationSummary>, ErrorData> {
+        let repo = load_repo(params.repo_dir).map_err(tool_error)?;
+        crate::core::validate_all(&repo)
+            .map(Json)
+            .map_err(tool_error)
     }
 
     #[tool(
@@ -187,14 +206,16 @@ impl TaktMcpServer {
     async fn action_run_plan(
         &self,
         Parameters(params): Parameters<RunPlanParams>,
-    ) -> Result<Json<Value>, String> {
-        let repo = load_repo(params.repo_dir)?;
-        json_result(crate::core::plan_action_run(
+    ) -> Result<Json<crate::core::ActionRunOutput>, ErrorData> {
+        let repo = load_repo(params.repo_dir).map_err(tool_error)?;
+        crate::core::plan_action_run(
             &repo,
             &params.selector,
             params.inputs.unwrap_or_default(),
             params.persist.unwrap_or(true),
-        ))
+        )
+        .map(Json)
+        .map_err(tool_error)
     }
 
     #[tool(
@@ -204,19 +225,21 @@ impl TaktMcpServer {
     async fn workflow_run_plan(
         &self,
         Parameters(params): Parameters<RunPlanParams>,
-    ) -> Result<Json<Value>, String> {
-        let repo = load_repo(params.repo_dir)?;
-        json_result(crate::core::plan_workflow_run(
+    ) -> Result<Json<crate::core::WorkflowRunOutput>, ErrorData> {
+        let repo = load_repo(params.repo_dir).map_err(tool_error)?;
+        crate::core::plan_workflow_run(
             &repo,
             &params.selector,
             params.inputs.unwrap_or_default(),
             params.persist.unwrap_or(true),
-        ))
+        )
+        .map(Json)
+        .map_err(tool_error)
     }
 }
 
 pub async fn serve_stdio() -> Result<()> {
-    let service = TaktMcpServer::new().serve(stdio()).await?;
+    let service = new_server().serve(stdio()).await?;
     service.waiting().await?;
     Ok(())
 }

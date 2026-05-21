@@ -1,7 +1,8 @@
+use clap::Parser;
 use color_eyre::eyre::Result;
 
 #[tokio::main]
 async fn main() -> Result<()> {
     color_eyre::install()?;
-    takt::mcp::serve_stdio().await
+    takt::mcp::Cli::parse().run().await
 }

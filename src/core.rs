@@ -5,8 +5,8 @@ use crate::domain::{
 use crate::scaffold::{CodingAgent, ScaffoldFile, package_bootstrap_files, package_project_root};
 use clap::ValueEnum;
 use color_eyre::eyre::{Result, bail, eyre};
-use schemars::Schema;
 use schemars::schema_for;
+use schemars::{JsonSchema, Schema};
 use serde::Serialize;
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
@@ -18,14 +18,14 @@ pub const CONCEPT_CHAIN: &str = "package -> capability -> action -> workflow -> 
 pub const RUNTIME_RULE: &str =
     "capabilities execute on named runtime profiles; workflows never point at images directly.";
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct ConceptsOutput {
     pub chain: &'static str,
     pub runtime_rule: &'static str,
     pub concepts: Vec<ConceptRow>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct ConceptRow {
     pub name: &'static str,
     pub role: &'static str,
@@ -144,7 +144,7 @@ pub fn schema_for_target(target: SchemaTarget) -> Value {
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct WrittenFile {
     pub label: String,
     pub path: PathBuf,
@@ -218,7 +218,7 @@ pub fn slugify(input: &str) -> String {
     slug.trim_end_matches('-').to_string()
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, JsonSchema)]
 pub struct InitOutput {
     pub command: &'static str,
     pub coding_agent: CodingAgent,
@@ -247,7 +247,7 @@ pub fn init_package(
     })
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, JsonSchema)]
 pub struct ActionGenerateOutput {
     pub command: &'static str,
     pub action: ActionDefinition,
@@ -272,7 +272,7 @@ pub fn generate_action(
     })
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, JsonSchema)]
 pub struct WorkflowGenerateOutput {
     pub command: &'static str,
     pub workflow: WorkflowDefinition,
@@ -339,7 +339,7 @@ pub fn load_workflow(repo: &Repository, selector: &str) -> Result<WorkflowDocume
     Ok(WorkflowDocument { path, workflow })
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct ValidationCheck {
     pub name: String,
     pub passed: bool,
@@ -347,7 +347,7 @@ pub struct ValidationCheck {
     pub message: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct ValidationReport {
     pub kind: String,
     pub subject: String,
@@ -356,7 +356,7 @@ pub struct ValidationReport {
     pub passed: bool,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct ValidationSummary {
     pub reports: Vec<ValidationReport>,
     pub passed: bool,
@@ -590,19 +590,19 @@ pub fn validate_all(repo: &Repository) -> Result<ValidationSummary> {
     Ok(ValidationSummary { reports, passed })
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum RunStatus {
     Planned,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum RunMode {
     PlanOnly,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, JsonSchema)]
 #[serde(tag = "mode", rename_all = "kebab-case")]
 pub enum CapabilityResolution {
     Local {
@@ -625,7 +625,7 @@ pub enum CapabilityResolution {
     },
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct ActionRunTarget {
     pub name: String,
     pub path: PathBuf,
@@ -633,7 +633,7 @@ pub struct ActionRunTarget {
     pub resolution: CapabilityResolution,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct ActionRunRecord {
     pub id: String,
     pub status: RunStatus,
@@ -648,13 +648,13 @@ pub struct ActionRunRecord {
     pub action: ActionRunTarget,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct ActionRunOutput {
     pub command: &'static str,
     pub run: ActionRunRecord,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct WorkflowStepRunTarget {
     pub name: String,
     pub action: String,
@@ -664,14 +664,14 @@ pub struct WorkflowStepRunTarget {
     pub needs: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct WorkflowRunTarget {
     pub name: String,
     pub path: PathBuf,
     pub steps: Vec<WorkflowStepRunTarget>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct WorkflowRunRecord {
     pub id: String,
     pub status: RunStatus,
@@ -686,7 +686,7 @@ pub struct WorkflowRunRecord {
     pub workflow: WorkflowRunTarget,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct WorkflowRunOutput {
     pub command: &'static str,
     pub run: WorkflowRunRecord,
