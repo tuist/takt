@@ -1,8 +1,5 @@
-mod cli;
 mod helpers;
-mod http;
+pub(crate) mod http;
 mod output;
 mod params;
-mod server;
-
-pub use cli::Cli;
+pub(crate) mod server;

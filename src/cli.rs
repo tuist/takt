@@ -1,6 +1,7 @@
 mod concepts;
 mod generate;
 mod init;
+mod mcp;
 mod run;
 mod schema;
 mod support;
@@ -11,6 +12,7 @@ use color_eyre::eyre::Result;
 use concepts::ConceptsCommand;
 use generate::GenerateCommand;
 use init::InitCommand;
+use mcp::McpCommand;
 use run::RunCommand;
 use schema::SchemaCommand;
 use std::path::PathBuf;
@@ -49,6 +51,7 @@ impl Cli {
             Command::Schema(command) => command.run(context),
             Command::Validate(command) => command.run(context),
             Command::Run(command) => command.run(context),
+            Command::Mcp(command) => command.run(context),
         }
     }
 }
@@ -68,4 +71,6 @@ enum Command {
     Validate(ValidateCommand),
     /// Plan a package action or workflow run
     Run(RunCommand),
+    /// Start the Takt MCP server
+    Mcp(McpCommand),
 }

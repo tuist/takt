@@ -16,12 +16,8 @@ run_takt_in() {
   )
 }
 
-run_takt_mcp() {
-  "$CARGO_BIN" run --quiet --bin takt-mcp --manifest-path "$TAKT_ROOT/Cargo.toml" -- "$@"
-}
-
-build_takt_mcp() {
-  "$CARGO_BIN" build --quiet --bin takt-mcp --manifest-path "$TAKT_ROOT/Cargo.toml"
+build_takt() {
+  "$CARGO_BIN" build --quiet --bin takt --manifest-path "$TAKT_ROOT/Cargo.toml"
 }
 
 new_workspace() {
@@ -118,10 +114,10 @@ start_takt_mcp_http() {
   local dir="$1"
   local log_file="$dir/takt-mcp.log"
   local out_file="$dir/takt-mcp.out"
-  local bin_path="$TAKT_ROOT/target/debug/takt-mcp"
+  local bin_path="$TAKT_ROOT/target/debug/takt"
 
-  build_takt_mcp || return $?
-  "$bin_path" --transport http --listen 127.0.0.1:0 --path /mcp >"$out_file" 2>"$log_file" &
+  build_takt || return $?
+  "$bin_path" mcp --transport http --listen 127.0.0.1:0 --path /mcp >"$out_file" 2>"$log_file" &
   local pid=$!
   local url
   url="$(wait_for_mcp_http_url "$log_file")" || {

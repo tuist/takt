@@ -155,7 +155,7 @@ mcp_repo_init_without_agents() {
   return "$status"
 }
 
-Describe 'takt-mcp HTTP transport'
+Describe 'takt mcp HTTP transport'
   BeforeEach 'setup_workspace'
   AfterEach 'cleanup_workspace'
 
