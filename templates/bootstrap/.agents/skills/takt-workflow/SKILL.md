@@ -21,7 +21,8 @@ This skill is a routing guide. Treat `takt schema workflow --format json` and wo
 
 1. Read the relevant file under `workflows/`.
 2. Run `takt schema workflow --format json`.
-3. Check that every step uses an action reference.
+3. Run `takt validate workflow <name-or-path> --format json`.
+4. Check that every step uses an action reference.
 
 ## Rules
 

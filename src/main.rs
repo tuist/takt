@@ -1,12 +1,8 @@
-mod cli;
-mod domain;
-mod output;
-mod scaffold;
-
 use clap::Parser;
 use color_eyre::eyre::Result;
+use takt::cli::Cli;
 
 fn main() -> Result<()> {
     color_eyre::install()?;
-    cli::Cli::parse().run()
+    Cli::parse().run()
 }

@@ -16,7 +16,8 @@ Prefer CLI JSON output over prose in this file when the command can answer the q
 1. Read `package.yaml`.
 2. Run `takt concepts --format json`.
 3. If the current file shapes matter, run `takt schema all --format json`.
-4. Explain the nouns in this order:
+4. If the repository already has actions or workflows, run `takt validate all --format json`.
+5. Explain the nouns in this order:
    `package -> capability -> action -> workflow -> run -> artifact`
 
 ## Local Files

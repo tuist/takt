@@ -3,7 +3,7 @@ CARGO_BIN="$(mise which cargo)"
 YQ_BIN="$(mise which yq)"
 
 run_takt() {
-  "$CARGO_BIN" run --quiet --manifest-path "$TAKT_ROOT/Cargo.toml" -- "$@"
+  "$CARGO_BIN" run --quiet --bin takt --manifest-path "$TAKT_ROOT/Cargo.toml" -- "$@"
 }
 
 run_takt_in() {
@@ -11,7 +11,7 @@ run_takt_in() {
   shift
   (
     cd "$dir" &&
-      "$CARGO_BIN" run --quiet --manifest-path "$TAKT_ROOT/Cargo.toml" -- "$@"
+      "$CARGO_BIN" run --quiet --bin takt --manifest-path "$TAKT_ROOT/Cargo.toml" -- "$@"
   )
 }
 

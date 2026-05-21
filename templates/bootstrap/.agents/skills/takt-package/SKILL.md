@@ -21,8 +21,9 @@ This skill is a routing guide. Treat `takt schema package --format json` and `pa
 
 1. Read `package.yaml`.
 2. Run `takt schema package --format json`.
-3. Confirm every capability references a named runtime profile.
-4. Confirm runtime policy is explicit: image digest, CPU, memory, network, and
+3. Run `takt validate package --format json`.
+4. Confirm every capability references a named runtime profile.
+5. Confirm runtime policy is explicit: image digest, CPU, memory, network, and
    secrets.
 
 ## Rules

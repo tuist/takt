@@ -11,6 +11,8 @@ Every user-facing command in the current prototype should have an e2e spec:
 - `takt init` including project bootstrap files
 - `takt generate action`
 - `takt generate workflow`
+- `takt validate`
+- `takt run`
 
 As new commands are added, add a matching spec file here.
 

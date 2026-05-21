@@ -23,7 +23,8 @@ This skill is a routing guide. Treat `takt schema action --format json` and the 
 
 1. Read the relevant file under `actions/`.
 2. Run `takt schema action --format json`.
-3. Confirm the action is configuration, not implementation.
+3. Run `takt validate action <name-or-path> --format json`.
+4. Confirm the action is configuration, not implementation.
 
 ## Rules
 
