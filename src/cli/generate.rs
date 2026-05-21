@@ -37,10 +37,10 @@ struct GenerateActionCommand {
     /// Capability reference this action uses
     capability: String,
     /// Output path for the action manifest
-    #[arg(short, long, value_name = "PATH")]
+    #[arg(short, long, env = "TAKT_GENERATE_ACTION_OUTPUT", value_name = "PATH")]
     output: Option<PathBuf>,
     /// Overwrite an existing file
-    #[arg(long)]
+    #[arg(short, long, env = "TAKT_GENERATE_ACTION_FORCE")]
     force: bool,
 }
 
@@ -65,13 +65,23 @@ struct GenerateWorkflowCommand {
     /// Workflow name
     name: String,
     /// Action reference used by the starter step
-    #[arg(long, default_value = "example-action")]
+    #[arg(
+        short,
+        long,
+        env = "TAKT_GENERATE_WORKFLOW_USES",
+        default_value = "example-action"
+    )]
     uses: String,
     /// Output path for the workflow manifest
-    #[arg(short, long, value_name = "PATH")]
+    #[arg(
+        short,
+        long,
+        env = "TAKT_GENERATE_WORKFLOW_OUTPUT",
+        value_name = "PATH"
+    )]
     output: Option<PathBuf>,
     /// Overwrite an existing file
-    #[arg(long)]
+    #[arg(short, long, env = "TAKT_GENERATE_WORKFLOW_FORCE")]
     force: bool,
 }
 

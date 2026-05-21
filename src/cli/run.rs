@@ -52,10 +52,16 @@ struct RunActionCommand {
     /// Action name or path
     selector: String,
     /// Input bindings in key=value form
-    #[arg(long = "input", value_name = "KEY=VALUE")]
+    #[arg(
+        short,
+        long = "input",
+        env = "TAKT_RUN_ACTION_INPUT",
+        value_delimiter = ',',
+        value_name = "KEY=VALUE"
+    )]
     input: Vec<String>,
     /// Do not persist the planned run to .takt/runs/
-    #[arg(long)]
+    #[arg(short = 'n', long, env = "TAKT_RUN_ACTION_NO_PERSIST")]
     no_persist: bool,
 }
 
@@ -64,9 +70,15 @@ struct RunWorkflowCommand {
     /// Workflow name or path
     selector: String,
     /// Input bindings in key=value form
-    #[arg(long = "input", value_name = "KEY=VALUE")]
+    #[arg(
+        short,
+        long = "input",
+        env = "TAKT_RUN_WORKFLOW_INPUT",
+        value_delimiter = ',',
+        value_name = "KEY=VALUE"
+    )]
     input: Vec<String>,
     /// Do not persist the planned run to .takt/runs/
-    #[arg(long)]
+    #[arg(short = 'n', long, env = "TAKT_RUN_WORKFLOW_NO_PERSIST")]
     no_persist: bool,
 }

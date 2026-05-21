@@ -27,11 +27,24 @@ use validate::ValidateCommand;
 )]
 pub struct Cli {
     /// Output format for command responses
-    #[arg(long, value_enum, global = true, default_value_t = OutputFormat::Text)]
+    #[arg(
+        short = 'F',
+        long,
+        env = "TAKT_FORMAT",
+        value_enum,
+        global = true,
+        default_value_t = OutputFormat::Text
+    )]
     format: OutputFormat,
 
     /// Package directory for commands that operate on a Takt package
-    #[arg(long = "package-dir", global = true, value_name = "PATH")]
+    #[arg(
+        short = 'C',
+        long = "dir",
+        env = "TAKT_DIR",
+        global = true,
+        value_name = "PATH"
+    )]
     package_dir: Option<PathBuf>,
 
     #[command(subcommand)]

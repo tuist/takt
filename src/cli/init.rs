@@ -12,16 +12,22 @@ pub(crate) struct InitCommand {
     /// Package name to write into the manifest
     name: String,
     /// Optional package description
-    #[arg(long)]
+    #[arg(short, long, env = "TAKT_INIT_DESCRIPTION")]
     description: Option<String>,
     /// Output path for the package manifest
-    #[arg(short, long, default_value = "package.yaml", value_name = "PATH")]
+    #[arg(
+        short,
+        long,
+        env = "TAKT_INIT_OUTPUT",
+        default_value = "package.yaml",
+        value_name = "PATH"
+    )]
     output: PathBuf,
     /// Coding-agent bootstrap to write into the package
-    #[arg(long, value_enum, default_value_t = CodingAgent::Codex)]
+    #[arg(short = 'a', long, env = "TAKT_INIT_CODING_AGENT", value_enum, default_value_t = CodingAgent::Codex)]
     coding_agent: CodingAgent,
     /// Overwrite an existing file
-    #[arg(long)]
+    #[arg(short, long, env = "TAKT_INIT_FORCE")]
     force: bool,
 }
 

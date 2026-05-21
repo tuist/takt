@@ -13,13 +13,13 @@ enum TransportMode {
 #[derive(Debug, Args)]
 pub(crate) struct McpCommand {
     /// Transport to expose for the MCP server
-    #[arg(long, value_enum, default_value_t = TransportMode::Stdio)]
+    #[arg(short, long, env = "TAKT_MCP_TRANSPORT", value_enum, default_value_t = TransportMode::Stdio)]
     transport: TransportMode,
     /// Address to bind when running the HTTP transport
-    #[arg(long, default_value = "127.0.0.1:0")]
+    #[arg(short, long, env = "TAKT_MCP_LISTEN", default_value = "127.0.0.1:0")]
     listen: SocketAddr,
     /// HTTP path to mount the MCP endpoint on
-    #[arg(long, default_value = "/mcp")]
+    #[arg(short, long, env = "TAKT_MCP_PATH", default_value = "/mcp")]
     path: String,
 }
 
