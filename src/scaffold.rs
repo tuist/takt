@@ -50,7 +50,10 @@ fn codex_bootstrap_files(project_root: &Path, package_name: &str) -> Vec<Scaffol
         ScaffoldFile::new(
             project_path(project_root, "AGENTS.md"),
             "agent guide",
-            package_agents(package_name),
+            render_template(
+                include_str!("../templates/bootstrap/AGENTS.md.tmpl"),
+                &[("package_name", package_name)],
+            ),
         ),
         ScaffoldFile::new(
             project_path(project_root, ".agents/skills/takt-getting-started/SKILL.md"),
@@ -83,21 +86,12 @@ fn project_path(project_root: &Path, relative_path: &str) -> PathBuf {
     }
 }
 
-fn package_agents(package_name: &str) -> String {
-    format!(
-        "# Project\n\n\
-This repository is a Takt package named `{package_name}`.\n\n\
-## Rules\n\n\
-1. Packages publish capabilities. Actions configure capabilities for this project. Workflows orchestrate actions.\n\
-2. Workflows depend on actions, never raw scripts, OCI images, or package names directly.\n\
-3. Capabilities execute on named runtime profiles. Pin Microsandbox OCI images by digest and declare network and secret policy explicitly.\n\
-4. Search the local package manifest before inventing a new capability or action.\n\
-5. If the CLI shape is unclear, inspect it with `takt concepts --format json` and `takt schema all --format json`.\n\
-6. Treat CLI JSON output as authoritative. Skills should route to commands, not duplicate command behavior.\n\n\
-## Skills\n\n\
-- `.agents/skills/takt-getting-started/SKILL.md`\n\
-- `.agents/skills/takt-package/SKILL.md`\n\
-- `.agents/skills/takt-action/SKILL.md`\n\
-- `.agents/skills/takt-workflow/SKILL.md`\n"
-    )
+fn render_template(template: &str, replacements: &[(&str, &str)]) -> String {
+    let mut rendered = template.to_string();
+
+    for (key, value) in replacements {
+        rendered = rendered.replace(&format!("{{{{{key}}}}}"), value);
+    }
+
+    rendered
 }
