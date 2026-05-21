@@ -1,16 +1,23 @@
 # Takt 🔥
 
-Takt is a toolkit for packaging capabilities and composing workflows for AI agents. The current implementation is written in Rust and exposes a CLI and MCP server.
+Most of the energy around agents right now is going into layers that sit above them. Better harnesses, better planners, better orchestration, better ways of steering a model through a task. That work matters, but it often leads to a familiar outcome: the framework becomes the product, and the agent becomes a guest inside it.
+
+Takt starts from a different assumption. The agent should remain the main interface. The harness is where the user asks for work, reviews progress, and iterates. The framework should live underneath that experience as an execution layer the agent can inspect, extend, and run.
+
+That is what Takt is for. It gives agents a set of primitives for turning one-off work into something more durable: packaged capabilities, project-local actions, composable workflows, and execution artifacts that can be inspected and reused later.
+
+The current implementation is written in Rust and exposes a CLI and MCP server.
 
 ## What Takt Is For
 
 Takt is aimed at teams that want a clearer way to:
 
-- publish reusable capabilities as packages
+- turn repeated agent work into reusable capabilities
+- publish those capabilities as packages
 - configure those capabilities for a specific project as actions
 - compose actions into workflows
 - run workflows with explicit runtime and network policy
-- expose the same model to both humans and coding agents
+- keep the user-facing interface in the agent harness while relying on a real execution layer underneath
 
 The canonical object model is:
 
