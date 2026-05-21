@@ -1,0 +1,5 @@
+--shell bash
+--helperdir e2e
+--default-path e2e
+--pattern "*_spec.sh"
+--execdir @project

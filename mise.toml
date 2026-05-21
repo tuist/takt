@@ -1,0 +1,8 @@
+[tools]
+rust = "stable"
+shellspec = "0.28.1"
+yq = "4.53.2"
+
+[tasks.e2e]
+description = "Run Takt end-to-end tests"
+run = "shellspec"
