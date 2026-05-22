@@ -4,6 +4,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/Rust-CLI-000000?logo=rust" alt="Rust CLI badge" />
+  <a href="https://github.com/tuist/takt/releases/latest"><img src="https://img.shields.io/github/v/release/tuist/takt?display_name=tag&sort=semver" alt="Latest release" /></a>
   <img src="https://img.shields.io/badge/MCP-compatible-1f6feb" alt="MCP compatible badge" />
   <img src="https://img.shields.io/badge/License-MIT-2ea44f" alt="MIT license badge" />
 </p>
