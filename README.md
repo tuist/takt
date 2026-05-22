@@ -1,3 +1,13 @@
+<p align="center">
+  <img src="assets/takt-logo.png" alt="Takt logo" width="30%" />
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Rust-CLI-000000?logo=rust" alt="Rust CLI badge" />
+  <img src="https://img.shields.io/badge/MCP-compatible-1f6feb" alt="MCP compatible badge" />
+  <img src="https://img.shields.io/badge/License-MIT-2ea44f" alt="MIT license badge" />
+</p>
+
 # Takt 🔥
 
 Most of the energy around agents right now is going into layers that sit above them: planners, orchestrators, workflow engines, and harnesses. Takt makes a different bet. The agent harness should remain the main interface, and the framework should live underneath it.
