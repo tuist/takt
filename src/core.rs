@@ -180,10 +180,10 @@ pub fn write_scaffold_files(files: &[ScaffoldFile], force: bool) -> Result<Vec<W
     let mut written = Vec::with_capacity(files.len());
 
     for file in files {
-        if let Some(parent) = file.path.parent() {
-            if !parent.as_os_str().is_empty() {
-                fs::create_dir_all(parent)?;
-            }
+        if let Some(parent) = file.path.parent()
+            && !parent.as_os_str().is_empty()
+        {
+            fs::create_dir_all(parent)?;
         }
 
         fs::write(&file.path, &file.contents)?;
@@ -366,29 +366,29 @@ pub struct ValidationSummary {
 
 pub fn validate_package(repo: &Repository) -> ValidationReport {
     let package = &repo.package;
-    let mut checks = Vec::new();
-
-    checks.push(expect_equal(
-        "API version",
-        &package.api_version,
-        API_VERSION,
-        "package manifest api_version",
-    ));
-    checks.push(simple_check(
-        "Package name",
-        !package.name.trim().is_empty(),
-        "package name must not be empty",
-    ));
-    checks.push(simple_check(
-        "Package version",
-        !package.version.trim().is_empty(),
-        "package version must not be empty",
-    ));
-    checks.push(simple_check(
-        "Node version",
-        !package.node.trim().is_empty(),
-        "package node must not be empty",
-    ));
+    let mut checks = vec![
+        expect_equal(
+            "API version",
+            &package.api_version,
+            API_VERSION,
+            "package manifest api_version",
+        ),
+        simple_check(
+            "Package name",
+            !package.name.trim().is_empty(),
+            "package name must not be empty",
+        ),
+        simple_check(
+            "Package version",
+            !package.version.trim().is_empty(),
+            "package version must not be empty",
+        ),
+        simple_check(
+            "Node version",
+            !package.node.trim().is_empty(),
+            "package node must not be empty",
+        ),
+    ];
 
     for (name, capability) in &package.capabilities {
         checks.push(simple_check(
@@ -471,30 +471,25 @@ pub fn validate_workflow_document(
     document: &WorkflowDocument,
 ) -> ValidationReport {
     let workflow = &document.workflow;
-    let mut checks = Vec::new();
-
-    checks.push(expect_equal(
-        "API version",
-        &workflow.api_version,
-        API_VERSION,
-        "workflow api_version",
-    ));
-    checks.push(expect_equal(
-        "Kind",
-        &workflow.kind,
-        "Workflow",
-        "workflow kind",
-    ));
-    checks.push(simple_check(
-        "Workflow name",
-        !workflow.name.trim().is_empty(),
-        "workflow name must not be empty",
-    ));
-    checks.push(simple_check(
-        "Workflow steps",
-        !workflow.steps.is_empty(),
-        "workflow must declare at least one step",
-    ));
+    let mut checks = vec![
+        expect_equal(
+            "API version",
+            &workflow.api_version,
+            API_VERSION,
+            "workflow api_version",
+        ),
+        expect_equal("Kind", &workflow.kind, "Workflow", "workflow kind"),
+        simple_check(
+            "Workflow name",
+            !workflow.name.trim().is_empty(),
+            "workflow name must not be empty",
+        ),
+        simple_check(
+            "Workflow steps",
+            !workflow.steps.is_empty(),
+            "workflow must declare at least one step",
+        ),
+    ];
 
     let mut step_names = BTreeSet::new();
     let mut duplicate_names = Vec::new();
