@@ -3,7 +3,7 @@ name: takt-action
 description: >
   Design or review Takt actions. Use when working on project-local configured
   uses of capabilities, including defaults, secret bindings, labels, and
-  runtime selection.
+  ownership metadata.
 ---
 
 # Takt Action
@@ -33,7 +33,6 @@ This skill is a routing guide. Treat `takt schema action --format toon` and the 
 - provide default inputs
 - bind secret sources
 - attach labels and ownership metadata
-- optionally choose a reviewed runtime profile
 
 ## Review Flow
 
@@ -47,9 +46,8 @@ This skill is a routing guide. Treat `takt schema action --format toon` and the 
 
 1. Workflows call actions, not capabilities.
 2. Actions should hold project-specific configuration, not distributable code.
-3. Runtime overrides should be rare and reviewable.
-4. Secret bindings should stay declarative.
-5. Prefer existing capabilities over inventing a new one just to fit a single action.
+3. Secret bindings should stay declarative.
+4. Prefer existing capabilities over inventing a new one just to fit a single action.
 
 ## Current Command
 

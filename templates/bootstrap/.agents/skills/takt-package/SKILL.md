@@ -2,7 +2,8 @@
 name: takt-package
 description: >
   Design or review a Takt package manifest. Use when working on capabilities,
-  runtime profiles, handlers, schemas, or registry-facing package structure.
+  the package Node version, handlers, schemas, or registry-facing package
+  structure.
 ---
 
 # Takt Package
@@ -12,7 +13,7 @@ This skill is a routing guide. Treat `takt schema package --format toon` and `ta
 
 ## Critical Rules
 
-- Never put workflow orchestration in `takt.json`. Packages publish capabilities and runtime profiles only.
+- Never put workflow orchestration in `takt.json`. Packages publish capabilities and pin one exact Node version.
 - Never let workflow concerns leak into capability definitions through raw step scripts or inline OCI images.
 - If unsure about available fields, run `takt schema package --format toon` instead of guessing.
 - Validate after every meaningful package edit with `takt validate package --format toon`.
@@ -29,7 +30,7 @@ This skill is a routing guide. Treat `takt schema package --format toon` and `ta
 ## Responsibilities
 
 - publish capabilities
-- define runtime profiles
+- pin an exact Node version
 - declare handler entrypoints
 - point at input and output schemas
 
@@ -38,15 +39,14 @@ This skill is a routing guide. Treat `takt schema package --format toon` and `ta
 1. Read `takt.json`.
 2. Run `takt schema package --format toon`.
 3. Run `takt validate package --format toon`.
-4. Confirm every capability references a named runtime profile.
-5. Confirm runtime policy is explicit: image digest, CPU, memory, network, and
-   secrets.
+4. Confirm the package pins an exact Node version.
+5. Confirm each capability defines a handler plus input and output schemas.
 
 ## Rules
 
 1. Search the local package before inventing a new capability.
-2. Capabilities must reference named runtime profiles.
-3. Runtime profiles should pin Microsandbox OCI images by digest.
+2. The package Node version is the execution contract for every capability.
+3. Capabilities should define handlers and schemas, not execution-policy knobs.
 4. Workflow files must never reference package names or container images
    directly.
 5. Capability changes should preserve the distinction between reusable

@@ -6,10 +6,11 @@ This package is named `{{package_name}}`.
 
 1. Packages publish capabilities. Actions configure capabilities for this project. Workflows orchestrate actions.
 2. Workflows depend on actions, never raw scripts, OCI images, or package names directly.
-3. Capabilities execute on named runtime profiles. Pin Microsandbox OCI images by digest and declare network and secret policy explicitly.
+3. Packages pin an exact Node version. Capabilities define handlers, schemas, and permissions inside that package contract.
 4. Search the local package manifest before inventing a new capability or action.
 5. If the CLI shape is unclear, inspect it with `takt concepts --format toon` and `takt schema all --format toon`.
 6. Treat CLI TOON output as authoritative. Skills should route to commands, not duplicate command behavior.
+7. Use Conventional Commit style for pull request titles, for example `refactor(package): simplify package node version`.
 
 ## Skills
 
@@ -18,7 +19,7 @@ When the task matches one of the areas below, read the corresponding `SKILL.md`
 before editing files or inventing command sequences.
 
 - `.agents/skills/takt-getting-started/SKILL.md` - Onboard a user to Takt's package, capability, action, and workflow model
-- `.agents/skills/takt-package/SKILL.md` - Design or review package capabilities and runtime profiles
+- `.agents/skills/takt-package/SKILL.md` - Design or review package capabilities and the package Node version
 - `.agents/skills/takt-action/SKILL.md` - Create, edit, validate, and run actions
 - `.agents/skills/takt-workflow/SKILL.md` - Create, edit, validate, and run workflows
 
@@ -28,7 +29,7 @@ At the start of a conversation:
 
 1. Read `takt.json`.
 2. If the user is new to Takt or asks for the core nouns, read `.agents/skills/takt-getting-started/SKILL.md`.
-3. If the task is about capabilities or runtimes, read `.agents/skills/takt-package/SKILL.md`.
+3. If the task is about capabilities or the package Node version, read `.agents/skills/takt-package/SKILL.md`.
 4. If the task is about configuring a capability use, read `.agents/skills/takt-action/SKILL.md`.
 5. If the task is about orchestration, step wiring, or run order, read `.agents/skills/takt-workflow/SKILL.md`.
 

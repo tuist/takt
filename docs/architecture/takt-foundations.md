@@ -26,19 +26,12 @@ Takt should keep the execution value while using more legible nouns:
 
 This keeps the registry surface separate from project configuration.
 
-## Runtime Model
+## Execution Model
 
-Capabilities execute on named runtime profiles. A runtime profile is reviewed
-infrastructure and should declare:
-
-- sandbox implementation, currently `microsandbox`
-- OCI image pinned by digest
-- CPU and memory limits
-- network mode plus allow list
-
-Workflows should never point at raw images or scripts directly. They call
-actions. Actions resolve to capabilities. Capabilities resolve to runtime
-profiles.
+Packages pin an exact Node version. Capabilities execute within that package
+contract, and workflows should never point at raw scripts directly. They call
+actions. Actions resolve to capabilities. Capabilities inherit the package's
+Node version.
 
 ## Microsandbox Direction
 
@@ -49,8 +42,9 @@ Microsandbox is the leading runtime candidate because it supports:
 - host-controlled network policy
 - secret handling that keeps real secrets out of the guest
 
-That makes it a better fit than a single Deno runtime if packages need Ruby,
-Python, Bash, or language-specific toolchains.
+Takt does not need to expose those execution-policy details in the package
+manifest yet. For now, packages only pin Node, and the executor can keep
+Microsandbox image selection plus CPU, memory, and network defaults internal.
 
 ## CLI Direction
 

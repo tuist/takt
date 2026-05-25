@@ -8,59 +8,19 @@ pub const API_VERSION: &str = "takt.dev/v1alpha1";
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct PackageManifest {
     pub api_version: String,
-    pub kind: String,
-    pub package: PackageMetadata,
-    #[serde(default)]
-    pub runtimes: BTreeMap<String, RuntimeProfile>,
-    #[serde(default)]
-    pub capabilities: BTreeMap<String, CapabilityDefinition>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct PackageMetadata {
     pub name: String,
     pub version: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct RuntimeProfile {
-    pub sandbox: SandboxKind,
-    pub image: String,
-    pub cpus: u8,
-    pub memory_mb: u16,
+    pub node: String,
     #[serde(default)]
-    pub network: NetworkPolicy,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "kebab-case")]
-pub enum SandboxKind {
-    Microsandbox,
-}
-
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
-pub struct NetworkPolicy {
-    pub mode: NetworkMode,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub allow: Vec<String>,
-}
-
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "kebab-case")]
-pub enum NetworkMode {
-    #[default]
-    Disabled,
-    AllowList,
-    PublicOnly,
+    pub capabilities: BTreeMap<String, CapabilityDefinition>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct CapabilityDefinition {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
-    pub runtime: String,
     pub handler: HandlerDefinition,
     pub input: SchemaReference,
     pub output: SchemaReference,
@@ -70,23 +30,9 @@ pub struct CapabilityDefinition {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct HandlerDefinition {
-    pub language: HandlerLanguage,
     pub entrypoint: String,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub argv: Vec<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "kebab-case")]
-pub enum HandlerLanguage {
-    Bash,
-    #[serde(rename = "javascript")]
-    JavaScript,
-    #[serde(rename = "typescript")]
-    TypeScript,
-    Python,
-    Ruby,
-    Rust,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -124,8 +70,6 @@ pub struct ActionDefinition {
     pub with: BTreeMap<String, Value>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub secrets: BTreeMap<String, SecretBinding>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub runtime: Option<String>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub labels: BTreeMap<String, String>,
 }
@@ -164,27 +108,13 @@ pub struct WorkflowStep {
 
 impl PackageManifest {
     pub fn starter(name: String, description: Option<String>) -> Self {
-        let mut runtimes = BTreeMap::new();
-        runtimes.insert(
-            "default".into(),
-            RuntimeProfile {
-                sandbox: SandboxKind::Microsandbox,
-                image: "ghcr.io/example/takt-runtime@sha256:replace-me".into(),
-                cpus: 1,
-                memory_mb: 512,
-                network: NetworkPolicy::default(),
-            },
-        );
-
         let mut capabilities = BTreeMap::new();
         capabilities.insert(
             "example.run".into(),
             CapabilityDefinition {
                 description: Some("Example capability scaffold".into()),
-                runtime: "default".into(),
                 handler: HandlerDefinition {
-                    language: HandlerLanguage::TypeScript,
-                    entrypoint: "handlers/example.ts".into(),
+                    entrypoint: "handlers/example.mjs".into(),
                     argv: vec![],
                 },
                 input: SchemaReference {
@@ -201,13 +131,10 @@ impl PackageManifest {
 
         Self {
             api_version: API_VERSION.into(),
-            kind: "Package".into(),
-            package: PackageMetadata {
-                name,
-                version: "0.1.0".into(),
-                description,
-            },
-            runtimes,
+            name,
+            version: "0.1.0".into(),
+            description,
+            node: "22.12.0".into(),
             capabilities,
         }
     }
@@ -223,7 +150,6 @@ impl ActionDefinition {
             description: Some("Project-local configured action scaffold".into()),
             with: BTreeMap::new(),
             secrets: BTreeMap::new(),
-            runtime: None,
             labels: BTreeMap::new(),
         }
     }

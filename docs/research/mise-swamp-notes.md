@@ -51,5 +51,5 @@ Specific files inspected in a scratch repo:
 - Takt should ship local skills with the repo, not just product docs
 - those skills should teach package, capability, action, and workflow handling
 - Takt should expose machine-readable schemas early
-- runtime profiles should be first-class because they are the safe execution
-  boundary between capabilities and workflows
+- Takt should keep one package-level Node execution contract as the boundary
+  between capabilities and workflows

@@ -10,6 +10,7 @@ This repository is a Takt package named `@acme/test`.
 4. Search the local package manifest before inventing a new capability or action.
 5. If the CLI shape is unclear, inspect it with `takt concepts --format json` and `takt schema all --format json`.
 6. Treat CLI JSON output as authoritative. Skills should route to commands, not duplicate command behavior.
+7. Use Conventional Commit style for pull request titles, for example `refactor(package): simplify package node version`.
 
 ## Skills
 

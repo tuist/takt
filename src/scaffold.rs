@@ -148,7 +148,11 @@ mod tests {
         );
         assert!(files[0].contents.contains("`takt concepts --format toon`"));
         assert!(files[0].contents.contains("## Getting Started"));
-        assert!(files[0].contents.contains("`.agents/skills/takt-workflow/SKILL.md`"));
+        assert!(
+            files[0]
+                .contents
+                .contains("`.agents/skills/takt-workflow/SKILL.md`")
+        );
         assert!(
             files[1]
                 .contents
