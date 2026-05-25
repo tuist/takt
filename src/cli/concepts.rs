@@ -35,8 +35,8 @@ fn render_output(concepts: &core::ConceptsOutput, format: OutputFormat) -> Resul
     rendered.push_str("\n\n");
     rendered.push_str(&format!(
         "{} {}\n",
-        style::label("Runtime rule:"),
-        concepts.runtime_rule
+        style::label("Execution rule:"),
+        concepts.execution_rule
     ));
 
     Ok(rendered)
@@ -55,14 +55,14 @@ mod tests {
         Takt package -> capability -> action -> workflow -> run -> artifact
 
          Concept     Role                                          Scope      Carries                                          
-         Package     Distributable unit published to a registry    Registry   Capabilities and runtime profiles                
-         Capability  Reusable interface exported by a package      Package    Runtime, handler, input schema, output schema    
+         Package     Distributable unit published to a registry    Registry   Node version and capabilities                    
+         Capability  Reusable interface exported by a package      Package    Handler, input schema, output schema             
          Action      Project-local configured use of a capability  Project    Defaults, secret refs, labels, account selection 
          Workflow    Ordered graph that composes actions           Project    Action steps plus dependencies                   
-         Run         One execution of an action or workflow        Runtime    Logs, status, timings, provenance                
+         Run         One execution of an action or workflow        Executor   Logs, status, timings, provenance                
          Artifact    Persisted output from a run                   Datastore  Structured data or files                         
 
-        Runtime rule: capabilities execute on named runtime profiles; workflows never point at images directly.
+        Execution rule: packages pin an exact Node version; workflows never point at scripts directly.
         "#);
         Ok(())
     }
@@ -72,19 +72,19 @@ mod tests {
         insta::assert_snapshot!(render_output(&core::concepts(), OutputFormat::Json)?, @r#"
         {
           "chain": "package -> capability -> action -> workflow -> run -> artifact",
-          "runtime_rule": "capabilities execute on named runtime profiles; workflows never point at images directly.",
+          "execution_rule": "packages pin an exact Node version; workflows never point at scripts directly.",
           "concepts": [
             {
               "name": "Package",
               "role": "Distributable unit published to a registry",
               "scope": "Registry",
-              "carries": "Capabilities and runtime profiles"
+              "carries": "Node version and capabilities"
             },
             {
               "name": "Capability",
               "role": "Reusable interface exported by a package",
               "scope": "Package",
-              "carries": "Runtime, handler, input schema, output schema"
+              "carries": "Handler, input schema, output schema"
             },
             {
               "name": "Action",
@@ -101,7 +101,7 @@ mod tests {
             {
               "name": "Run",
               "role": "One execution of an action or workflow",
-              "scope": "Runtime",
+              "scope": "Executor",
               "carries": "Logs, status, timings, provenance"
             },
             {
@@ -119,7 +119,7 @@ mod tests {
     #[test]
     fn toon_output_matches_snapshot() -> Result<()> {
         insta::assert_snapshot!(render_output(&core::concepts(), OutputFormat::Toon)?, @r#"
-        {"chain":"package -> capability -> action -> workflow -> run -> artifact","runtime_rule":"capabilities execute on named runtime profiles; workflows never point at images directly.","concepts":[{"name":"Package","role":"Distributable unit published to a registry","scope":"Registry","carries":"Capabilities and runtime profiles"},{"name":"Capability","role":"Reusable interface exported by a package","scope":"Package","carries":"Runtime, handler, input schema, output schema"},{"name":"Action","role":"Project-local configured use of a capability","scope":"Project","carries":"Defaults, secret refs, labels, account selection"},{"name":"Workflow","role":"Ordered graph that composes actions","scope":"Project","carries":"Action steps plus dependencies"},{"name":"Run","role":"One execution of an action or workflow","scope":"Runtime","carries":"Logs, status, timings, provenance"},{"name":"Artifact","role":"Persisted output from a run","scope":"Datastore","carries":"Structured data or files"}]}
+        {"chain":"package -> capability -> action -> workflow -> run -> artifact","execution_rule":"packages pin an exact Node version; workflows never point at scripts directly.","concepts":[{"name":"Package","role":"Distributable unit published to a registry","scope":"Registry","carries":"Node version and capabilities"},{"name":"Capability","role":"Reusable interface exported by a package","scope":"Package","carries":"Handler, input schema, output schema"},{"name":"Action","role":"Project-local configured use of a capability","scope":"Project","carries":"Defaults, secret refs, labels, account selection"},{"name":"Workflow","role":"Ordered graph that composes actions","scope":"Project","carries":"Action steps plus dependencies"},{"name":"Run","role":"One execution of an action or workflow","scope":"Executor","carries":"Logs, status, timings, provenance"},{"name":"Artifact","role":"Persisted output from a run","scope":"Datastore","carries":"Structured data or files"}]}
         "#);
         Ok(())
     }

@@ -49,7 +49,7 @@ impl ServerHandler for TaktMcpServer {}
 impl TaktMcpServer {
     #[tool(
         name = "concepts_get",
-        description = "Get the canonical Takt object model and runtime rule"
+        description = "Get the canonical Takt object model and execution rule"
     )]
     async fn concepts_get(&self) -> Result<Json<crate::core::ConceptsOutput>, ErrorData> {
         Ok(Json(crate::core::concepts()))
@@ -67,14 +67,13 @@ impl TaktMcpServer {
         let target = match target_name.as_str() {
             "all" => crate::core::SchemaTarget::All,
             "package" => crate::core::SchemaTarget::Package,
-            "runtime" => crate::core::SchemaTarget::Runtime,
             "capability" => crate::core::SchemaTarget::Capability,
             "action" => crate::core::SchemaTarget::Action,
             "workflow" => crate::core::SchemaTarget::Workflow,
             other => {
                 return Err(ErrorData::invalid_params(
                     format!(
-                        "invalid schema target '{other}', expected one of all, package, runtime, capability, action, workflow"
+                        "invalid schema target '{other}', expected one of all, package, capability, action, workflow"
                     ),
                     None,
                 ));

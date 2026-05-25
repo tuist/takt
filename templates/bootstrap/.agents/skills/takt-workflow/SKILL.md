@@ -48,7 +48,7 @@ This skill is a routing guide. Treat `takt schema workflow --format toon` and wo
 2. Steps should declare dependencies explicitly.
 3. Workflow data flow should prefer structured inputs and artifacts over
    implicit environment mutation.
-4. Runtime concerns belong to capabilities and actions, not workflow steps.
+4. Execution concerns belong to the package and its capabilities, not workflow steps.
 5. When a workflow changes behavior, re-check the actions it references before adding new steps.
 
 ## Current Command

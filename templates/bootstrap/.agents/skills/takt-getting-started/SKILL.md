@@ -43,12 +43,12 @@ question directly.
 Action:
 
 1. Read `takt.json`.
-2. Identify the package name, existing capabilities, and runtime profiles.
+2. Identify the package name, pinned Node version, and existing capabilities.
 
 Verify:
 
 - You can name the package.
-- You can point to the capability and runtime definitions that already exist.
+- You can point to the package Node version and the capability definitions that already exist.
 
 ## State 2: concepts_understood
 
@@ -85,7 +85,7 @@ Action:
 
 ## Routing
 
-- If the user is changing package capabilities or runtimes, use `takt-package`.
+- If the user is changing package capabilities or the package Node version, use `takt-package`.
 - If the user is changing configured uses of capabilities, use `takt-action`.
 - If the user is changing orchestration, use `takt-workflow`.
 
@@ -93,4 +93,4 @@ Action:
 
 - Do not collapse `capability` and `action` into one concept.
 - Do not let workflows depend on raw images or scripts.
-- Treat runtime profiles as reviewed infrastructure, not ad-hoc step settings.
+- Treat the package Node version as the execution contract, not a step-level setting.

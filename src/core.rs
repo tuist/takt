@@ -1,6 +1,6 @@
 use crate::domain::{
-    API_VERSION, ActionDefinition, CapabilityDefinition, HandlerDefinition, NetworkMode,
-    PackageManifest, RuntimeProfile, WorkflowDefinition,
+    API_VERSION, ActionDefinition, CapabilityDefinition, HandlerDefinition, PackageManifest,
+    WorkflowDefinition,
 };
 use crate::scaffold::{CodingAgent, ScaffoldFile, package_bootstrap_files, package_project_root};
 use clap::ValueEnum;
@@ -15,15 +15,15 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 pub const CONCEPT_CHAIN: &str = "package -> capability -> action -> workflow -> run -> artifact";
-pub const RUNTIME_RULE: &str =
-    "capabilities execute on named runtime profiles; workflows never point at images directly.";
+pub const EXECUTION_RULE: &str =
+    "packages pin an exact Node version; workflows never point at scripts directly.";
 pub const ROOT_MANIFEST_FILENAME: &str = "takt.json";
 pub const MANIFEST_EXTENSION: &str = "json";
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct ConceptsOutput {
     pub chain: &'static str,
-    pub runtime_rule: &'static str,
+    pub execution_rule: &'static str,
     pub concepts: Vec<ConceptRow>,
 }
 
@@ -54,19 +54,19 @@ impl ConceptRow {
 pub fn concepts() -> ConceptsOutput {
     ConceptsOutput {
         chain: CONCEPT_CHAIN,
-        runtime_rule: RUNTIME_RULE,
+        execution_rule: EXECUTION_RULE,
         concepts: vec![
             ConceptRow::new(
                 "Package",
                 "Distributable unit published to a registry",
                 "Registry",
-                "Capabilities and runtime profiles",
+                "Node version and capabilities",
             ),
             ConceptRow::new(
                 "Capability",
                 "Reusable interface exported by a package",
                 "Package",
-                "Runtime, handler, input schema, output schema",
+                "Handler, input schema, output schema",
             ),
             ConceptRow::new(
                 "Action",
@@ -83,7 +83,7 @@ pub fn concepts() -> ConceptsOutput {
             ConceptRow::new(
                 "Run",
                 "One execution of an action or workflow",
-                "Runtime",
+                "Executor",
                 "Logs, status, timings, provenance",
             ),
             ConceptRow::new(
@@ -101,7 +101,6 @@ pub fn concepts() -> ConceptsOutput {
 pub enum SchemaTarget {
     All,
     Package,
-    Runtime,
     Capability,
     Action,
     Workflow,
@@ -110,7 +109,6 @@ pub enum SchemaTarget {
 #[derive(Debug, Serialize)]
 pub struct SchemaBundle {
     pub package: Schema,
-    pub runtime: Schema,
     pub capability: Schema,
     pub action: Schema,
     pub workflow: Schema,
@@ -119,7 +117,6 @@ pub struct SchemaBundle {
 pub fn schema_bundle() -> SchemaBundle {
     SchemaBundle {
         package: schema_for!(PackageManifest),
-        runtime: schema_for!(RuntimeProfile),
         capability: schema_for!(CapabilityDefinition),
         action: schema_for!(ActionDefinition),
         workflow: schema_for!(WorkflowDefinition),
@@ -131,9 +128,6 @@ pub fn schema_for_target(target: SchemaTarget) -> Value {
         SchemaTarget::All => serde_json::to_value(schema_bundle()).expect("schema bundle is valid"),
         SchemaTarget::Package => {
             serde_json::to_value(schema_for!(PackageManifest)).expect("package schema is valid")
-        }
-        SchemaTarget::Runtime => {
-            serde_json::to_value(schema_for!(RuntimeProfile)).expect("runtime schema is valid")
         }
         SchemaTarget::Capability => serde_json::to_value(schema_for!(CapabilityDefinition))
             .expect("capability schema is valid"),
@@ -380,55 +374,43 @@ pub fn validate_package(repo: &Repository) -> ValidationReport {
         API_VERSION,
         "package manifest api_version",
     ));
-    checks.push(expect_equal(
-        "Kind",
-        &package.kind,
-        "Package",
-        "package manifest kind",
-    ));
     checks.push(simple_check(
         "Package name",
-        !package.package.name.trim().is_empty(),
+        !package.name.trim().is_empty(),
         "package name must not be empty",
     ));
     checks.push(simple_check(
-        "Runtime profiles",
-        !package.runtimes.is_empty(),
-        "package should define at least one runtime profile",
+        "Package version",
+        !package.version.trim().is_empty(),
+        "package version must not be empty",
     ));
-
-    for (name, runtime) in &package.runtimes {
-        checks.push(simple_check(
-            format!("Runtime '{name}' pins an OCI image digest"),
-            runtime.image.contains("@sha256:"),
-            format!("runtime '{name}' image should be pinned by digest"),
-        ));
-
-        let allowlist_valid = match runtime.network.mode {
-            NetworkMode::AllowList => !runtime.network.allow.is_empty(),
-            _ => true,
-        };
-        checks.push(simple_check(
-            format!("Runtime '{name}' network policy is explicit"),
-            allowlist_valid,
-            format!("runtime '{name}' uses allow-list mode but has no allowed hosts"),
-        ));
-    }
+    checks.push(simple_check(
+        "Node version",
+        !package.node.trim().is_empty(),
+        "package node must not be empty",
+    ));
 
     for (name, capability) in &package.capabilities {
         checks.push(simple_check(
-            format!("Capability '{name}' references an existing runtime"),
-            repo.package.runtimes.contains_key(&capability.runtime),
-            format!(
-                "capability '{name}' references unknown runtime '{}'",
-                capability.runtime
-            ),
+            format!("Capability '{name}' handler entrypoint is present"),
+            !capability.handler.entrypoint.trim().is_empty(),
+            format!("capability '{name}' handler entrypoint must not be empty"),
+        ));
+        checks.push(simple_check(
+            format!("Capability '{name}' input schema is present"),
+            !capability.input.path.trim().is_empty(),
+            format!("capability '{name}' input schema path must not be empty"),
+        ));
+        checks.push(simple_check(
+            format!("Capability '{name}' output schema is present"),
+            !capability.output.path.trim().is_empty(),
+            format!("capability '{name}' output schema path must not be empty"),
         ));
     }
 
     validation_report(
         "package",
-        package.package.name.clone(),
+        package.name.clone(),
         repo.package_path.clone(),
         checks,
     )
@@ -480,14 +462,6 @@ pub fn validate_action_document(repo: &Repository, document: &ActionDocument) ->
             format!("capability '{reference}' is not defined in {ROOT_MANIFEST_FILENAME}"),
         ),
     });
-
-    if let Some(runtime) = &action.runtime {
-        checks.push(simple_check(
-            format!("Runtime override '{}' exists in package", runtime),
-            repo.package.runtimes.contains_key(runtime),
-            format!("runtime override '{runtime}' is not defined in {ROOT_MANIFEST_FILENAME}"),
-        ));
-    }
 
     validation_report("action", action.name.clone(), document.path.clone(), checks)
 }
@@ -617,7 +591,7 @@ pub enum CapabilityResolution {
         reference: String,
         package: String,
         capability: String,
-        runtime: String,
+        node: String,
         handler: HandlerDefinition,
     },
     External {
@@ -744,9 +718,7 @@ pub fn plan_action_run(
         planned_at_unix_ms,
         repo_root: repo.root.clone(),
         state_path: None,
-        message:
-            "Microsandbox execution is not implemented yet; Takt persisted a planned run only."
-                .into(),
+        message: "Execution is not implemented yet; Takt persisted a planned run only.".into(),
         inputs,
         validation,
         action: ActionRunTarget {
@@ -825,9 +797,7 @@ pub fn plan_workflow_run(
         planned_at_unix_ms,
         repo_root: repo.root.clone(),
         state_path: None,
-        message:
-            "Microsandbox execution is not implemented yet; Takt persisted a planned run only."
-                .into(),
+        message: "Execution is not implemented yet; Takt persisted a planned run only.".into(),
         inputs,
         validation,
         workflow: WorkflowRunTarget {
@@ -1027,7 +997,7 @@ fn resolve_capability_reference(repo: &Repository, reference: &str) -> Capabilit
             };
         }
 
-        if package == repo.package.package.name {
+        if package == repo.package.name {
             return repo
                 .package
                 .capabilities
@@ -1036,7 +1006,7 @@ fn resolve_capability_reference(repo: &Repository, reference: &str) -> Capabilit
                     reference: reference.into(),
                     package: package.into(),
                     capability: capability.into(),
-                    runtime: definition.runtime.clone(),
+                    node: repo.package.node.clone(),
                     handler: definition.handler.clone(),
                 })
                 .unwrap_or_else(|| CapabilityResolution::MissingLocal {
@@ -1055,9 +1025,9 @@ fn resolve_capability_reference(repo: &Repository, reference: &str) -> Capabilit
         .get(reference)
         .map(|definition| CapabilityResolution::Local {
             reference: reference.into(),
-            package: repo.package.package.name.clone(),
+            package: repo.package.name.clone(),
             capability: reference.into(),
-            runtime: definition.runtime.clone(),
+            node: repo.package.node.clone(),
             handler: definition.handler.clone(),
         })
         .unwrap_or_else(|| CapabilityResolution::MissingLocal {
