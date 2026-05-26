@@ -177,6 +177,30 @@ Describe 'takt mcp HTTP transport'
     The output should include "Initialize a Takt package"
   End
 
+  It 'lists the run_list datastore tool over HTTP'
+    When call mcp_tools_list_query "$TEST_WORKSPACE" '.result.tools[] | select(.name == "run_list") | .description'
+    The status should be success
+    The output should include "persisted runs"
+  End
+
+  It 'lists the run_get datastore tool over HTTP'
+    When call mcp_tools_list_query "$TEST_WORKSPACE" '.result.tools[] | select(.name == "run_get") | .description'
+    The status should be success
+    The output should include "single persisted run"
+  End
+
+  It 'lists the artifact_list datastore tool over HTTP'
+    When call mcp_tools_list_query "$TEST_WORKSPACE" '.result.tools[] | select(.name == "artifact_list") | .description'
+    The status should be success
+    The output should include "artifacts persisted"
+  End
+
+  It 'lists the artifact_get datastore tool over HTTP'
+    When call mcp_tools_list_query "$TEST_WORKSPACE" '.result.tools[] | select(.name == "artifact_get") | .description'
+    The status should be success
+    The output should include "single artifact record"
+  End
+
   It 'can call package_init over HTTP without bootstrapping coding-agent files'
     When call mcp_package_init_without_agents "$TEST_WORKSPACE"
     The status should be success

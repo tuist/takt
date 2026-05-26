@@ -39,10 +39,20 @@ pub fn package_bootstrap_files(
     package_name: &str,
     coding_agent: CodingAgent,
 ) -> Vec<ScaffoldFile> {
+    let mut files = starter_handler_files(project_root);
     match coding_agent {
-        CodingAgent::Codex => codex_bootstrap_files(project_root, package_name),
-        CodingAgent::None => Vec::new(),
+        CodingAgent::Codex => files.extend(codex_bootstrap_files(project_root, package_name)),
+        CodingAgent::None => {}
     }
+    files
+}
+
+fn starter_handler_files(project_root: &Path) -> Vec<ScaffoldFile> {
+    vec![ScaffoldFile::new(
+        project_path(project_root, "handlers/example.mjs"),
+        "starter handler",
+        include_str!("../templates/bootstrap/handlers/example.mjs").to_string(),
+    )]
 }
 
 fn codex_bootstrap_files(project_root: &Path, package_name: &str) -> Vec<ScaffoldFile> {
@@ -118,21 +128,24 @@ mod tests {
     }
 
     #[test]
-    fn package_bootstrap_files_are_empty_when_coding_agent_is_disabled() {
-        assert!(
-            package_bootstrap_files(Path::new("."), "@acme/test", CodingAgent::None).is_empty()
-        );
+    fn package_bootstrap_files_include_only_the_starter_handler_when_coding_agent_is_disabled() {
+        let files = package_bootstrap_files(Path::new("."), "@acme/test", CodingAgent::None);
+        let paths: Vec<_> = files.iter().map(|file| file.path.as_path()).collect();
+        assert_eq!(paths, vec![Path::new("handlers/example.mjs")]);
+        assert_eq!(files[0].label, "starter handler");
+        assert!(files[0].contents.contains("TAKT_RESULT_PATH"));
     }
 
     #[test]
-    fn package_bootstrap_files_include_agents_guide_and_skills() {
+    fn package_bootstrap_files_include_starter_handler_and_agents_skills() {
         let files = package_bootstrap_files(Path::new("."), "@acme/test", CodingAgent::Codex);
         let paths: Vec<_> = files.iter().map(|file| file.path.as_path()).collect();
 
-        assert_eq!(files.len(), 5);
+        assert_eq!(files.len(), 6);
         assert_eq!(
             paths,
             vec![
+                Path::new("handlers/example.mjs"),
                 Path::new("AGENTS.md"),
                 Path::new(".agents/skills/takt-getting-started/SKILL.md"),
                 Path::new(".agents/skills/takt-package/SKILL.md"),
@@ -140,27 +153,27 @@ mod tests {
                 Path::new(".agents/skills/takt-workflow/SKILL.md"),
             ]
         );
-        assert_eq!(files[0].label, "agent guide");
+        assert_eq!(files[1].label, "agent guide");
         assert!(
-            files[0]
+            files[1]
                 .contents
                 .contains("This package is named `@acme/test`.")
         );
-        assert!(files[0].contents.contains("`takt concepts --format toon`"));
-        assert!(files[0].contents.contains("## Getting Started"));
+        assert!(files[1].contents.contains("`takt concepts --format toon`"));
+        assert!(files[1].contents.contains("## Getting Started"));
         assert!(
-            files[0]
+            files[1]
                 .contents
                 .contains("`.agents/skills/takt-workflow/SKILL.md`")
         );
         assert!(
-            files[1]
+            files[2]
                 .contents
                 .contains("Prefer CLI TOON output over prose in this file")
         );
-        assert!(files[1].contents.contains("start -> package_inspected"));
+        assert!(files[2].contents.contains("start -> package_inspected"));
         assert!(
-            files[3]
+            files[4]
                 .contents
                 .contains("Never write an action manifest from scratch.")
         );
@@ -174,9 +187,13 @@ mod tests {
             CodingAgent::Codex,
         );
 
-        assert_eq!(files[0].path, PathBuf::from("packages/example/AGENTS.md"));
         assert_eq!(
-            files[4].path,
+            files[0].path,
+            PathBuf::from("packages/example/handlers/example.mjs")
+        );
+        assert_eq!(files[1].path, PathBuf::from("packages/example/AGENTS.md"));
+        assert_eq!(
+            files[5].path,
             PathBuf::from("packages/example/.agents/skills/takt-workflow/SKILL.md")
         );
     }

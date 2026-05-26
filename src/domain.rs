@@ -14,8 +14,50 @@ pub struct PackageManifest {
     pub description: Option<String>,
     pub node: String,
     #[serde(default)]
+    pub runtimes: BTreeMap<String, RuntimeProfile>,
+    #[serde(default)]
     pub capabilities: BTreeMap<String, CapabilityDefinition>,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct RuntimeProfile {
+    /// "process" runs the handler as a plain Node subprocess. "microsandbox"
+    /// invokes the `msb` CLI to run the handler inside a microVM.
+    pub sandbox: String,
+    /// OCI image reference used when sandbox=microsandbox (e.g. node:22-alpine
+    /// or a digest-pinned reference).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub image: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cpus: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub memory_mb: Option<u32>,
+    #[serde(default)]
+    pub network: NetworkPolicy,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct NetworkPolicy {
+    /// "disabled" | "allow-all". Maps to `msb --no-network` or `--network-policy allow-all`.
+    #[serde(default = "default_network_mode")]
+    pub mode: String,
+}
+
+impl Default for NetworkPolicy {
+    fn default() -> Self {
+        Self {
+            mode: default_network_mode(),
+        }
+    }
+}
+
+fn default_network_mode() -> String {
+    "disabled".to_string()
+}
+
+pub const SANDBOX_PROCESS: &str = "process";
+pub const SANDBOX_MICROSANDBOX: &str = "microsandbox";
+pub const DEFAULT_RUNTIME_NAME: &str = "default";
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct CapabilityDefinition {
@@ -24,8 +66,34 @@ pub struct CapabilityDefinition {
     pub handler: HandlerDefinition,
     pub input: SchemaReference,
     pub output: SchemaReference,
+    /// Runtime profile name (key into PackageManifest.runtimes). Falls back to
+    /// "default" when unset; if no matching profile exists, the handler runs
+    /// as a plain Node subprocess with no isolation.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub runtime: Option<String>,
     #[serde(default, skip_serializing_if = "PermissionPolicy::is_empty")]
     pub permissions: PermissionPolicy,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub artifacts: BTreeMap<String, ArtifactDeclaration>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum ArtifactType {
+    Resource,
+    File,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct ArtifactDeclaration {
+    #[serde(rename = "type")]
+    pub artifact_type: ArtifactType,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub schema: Option<SchemaReference>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub content_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -104,6 +172,40 @@ pub struct WorkflowStep {
     pub foreach: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub if_expression: Option<String>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub artifacts: BTreeMap<String, WorkflowStepArtifactOverride>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+pub struct WorkflowStepArtifactOverride {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub retention: Option<RetentionPolicy>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub tags: BTreeMap<String, String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub vary: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct RetentionPolicy {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub lifetime: Option<Lifetime>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub keep_latest: Option<u32>,
+}
+
+/// How long an artifact should live before garbage collection considers it.
+///
+/// `Duration` carries a string like `30d` or `1h`; bounded variants describe
+/// well-known scopes so handlers and the GC do not have to guess.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
+#[serde(tag = "kind", rename_all = "kebab-case")]
+pub enum Lifetime {
+    Ephemeral,
+    Job,
+    Workflow,
+    Infinite,
+    Duration { value: String },
 }
 
 impl PackageManifest {
@@ -125,7 +227,21 @@ impl PackageManifest {
                     path: "schemas/example-output.json".into(),
                     description: Some("Output schema for the example capability".into()),
                 },
+                runtime: Some(DEFAULT_RUNTIME_NAME.into()),
                 permissions: PermissionPolicy::default(),
+                artifacts: BTreeMap::new(),
+            },
+        );
+
+        let mut runtimes = BTreeMap::new();
+        runtimes.insert(
+            DEFAULT_RUNTIME_NAME.into(),
+            RuntimeProfile {
+                sandbox: SANDBOX_PROCESS.into(),
+                image: None,
+                cpus: None,
+                memory_mb: None,
+                network: NetworkPolicy::default(),
             },
         );
 
@@ -135,6 +251,7 @@ impl PackageManifest {
             version: "0.1.0".into(),
             description,
             node: "22.12.0".into(),
+            runtimes,
             capabilities,
         }
     }
@@ -170,6 +287,7 @@ impl WorkflowDefinition {
                 needs: vec![],
                 foreach: None,
                 if_expression: None,
+                artifacts: BTreeMap::new(),
             }],
         }
     }
