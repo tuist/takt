@@ -52,9 +52,61 @@ pub(super) struct WorkflowSelectorParams {
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
-pub(super) struct RunPlanParams {
+pub(super) struct ActionRunParams {
     pub selector: String,
     pub package_dir: Option<String>,
     pub inputs: Option<BTreeMap<String, Value>>,
     pub persist: Option<bool>,
+    /// If true, validate + resolve only; do not invoke the handler.
+    pub plan_only: Option<bool>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub(super) struct WorkflowRunParams {
+    pub selector: String,
+    pub package_dir: Option<String>,
+    pub inputs: Option<BTreeMap<String, Value>>,
+    pub persist: Option<bool>,
+    /// If true, validate + resolve all steps without invoking any handler.
+    pub plan_only: Option<bool>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub(super) struct RunListParams {
+    pub package_dir: Option<String>,
+    /// "action" or "workflow"
+    pub kind: Option<String>,
+    /// "planned" | "running" | "succeeded" | "failed"
+    pub status: Option<String>,
+    /// Compact duration like 30s, 5m, 2h, 7d
+    pub since: Option<String>,
+    pub limit: Option<usize>,
+    /// Equality predicates over record paths (e.g. "source.kind=workflow"); all ANDed
+    pub r#where: Option<Vec<String>>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub(super) struct RunGetParams {
+    pub id: String,
+    pub package_dir: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub(super) struct ArtifactListParams {
+    pub package_dir: Option<String>,
+    pub run: Option<String>,
+    pub name: Option<String>,
+    pub capability: Option<String>,
+    /// Required tag values; every entry must match
+    pub tags: Option<BTreeMap<String, String>>,
+    pub since: Option<String>,
+    pub limit: Option<usize>,
+    /// Equality predicates over record paths (e.g. "tags.env=prod"); all ANDed
+    pub r#where: Option<Vec<String>>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub(super) struct ArtifactGetParams {
+    pub id: String,
+    pub package_dir: Option<String>,
 }

@@ -62,3 +62,27 @@ Use `takt init <name>` to scaffold a new package, then edit
 - package names appearing directly in workflow steps
 - raw container images referenced by workflows
 - one-off script paths standing in for capabilities
+
+## Handlers and Runtimes
+
+Each capability has a `handler.entrypoint` pointing at a Node ESM module
+inside the package. Takt invokes it with this contract:
+
+- `TAKT_RUN_ID`, `TAKT_CAPABILITY`, `TAKT_PACKAGE_ROOT` env vars
+- `TAKT_INPUT_PATH` — JSON file containing the merged inputs
+- `TAKT_RESULT_PATH` — path the handler MUST write its JSON result to
+- result shape: `{ "output": <any>, "artifacts": [{name, type, value|path, content_type, tags}] }`
+
+Capabilities reference a runtime profile via `runtime: "<name>"` (defaults
+to `default`). Profiles in `runtimes` configure how the handler is launched:
+
+- `sandbox: "process"` (default) — runs the handler as a plain Node
+  subprocess. No isolation; trust your own handlers.
+- `sandbox: "microsandbox"` — runs the handler inside a microsandbox
+  microVM. Requires the `msb` CLI on PATH (see https://microsandbox.dev)
+  and an `image` field with a pinned OCI reference such as
+  `docker.io/library/node:22-alpine` or a digest-pinned image. Network
+  defaults to disabled; set `network.mode: "allow-all"` to lift it.
+
+Sandboxing is opt-in — the scaffold ships `sandbox: "process"` so basic
+runs work without extra installs.

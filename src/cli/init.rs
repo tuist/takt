@@ -75,9 +75,7 @@ mod tests {
     #[test]
     fn toon_output_matches_snapshot() -> Result<()> {
         let output = sample_init_output();
-        insta::assert_snapshot!(render_init_output(&output, OutputFormat::Toon)?, @r#"
-        {"command":"init","coding_agent":"codex","package":{"api_version":"takt.dev/v1alpha1","name":"@acme/test","version":"0.1.0","description":"Test package","node":"22.12.0","capabilities":{"example.run":{"description":"Example capability scaffold","handler":{"entrypoint":"handlers/example.mjs"},"input":{"path":"schemas/example-input.json","description":"Input schema for the example capability"},"output":{"path":"schemas/example-output.json","description":"Output schema for the example capability"}}}},"files":[{"label":"package","path":"takt.json"},{"label":"agent guide","path":"AGENTS.md"}]}
-        "#);
+        insta::assert_snapshot!(render_init_output(&output, OutputFormat::Toon)?, @r#"{"command":"init","coding_agent":"codex","package":{"api_version":"takt.dev/v1alpha1","name":"@acme/test","version":"0.1.0","description":"Test package","node":"22.12.0","runtimes":{"default":{"sandbox":"process","network":{"mode":"disabled"}}},"capabilities":{"example.run":{"description":"Example capability scaffold","handler":{"entrypoint":"handlers/example.mjs"},"input":{"path":"schemas/example-input.json","description":"Input schema for the example capability"},"output":{"path":"schemas/example-output.json","description":"Output schema for the example capability"},"runtime":"default"}}},"files":[{"label":"package","path":"takt.json"},{"label":"agent guide","path":"AGENTS.md"}]}"#);
         Ok(())
     }
 
