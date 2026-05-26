@@ -191,10 +191,7 @@ mod tests {
             files[0].path,
             PathBuf::from("packages/example/handlers/example.mjs")
         );
-        assert_eq!(
-            files[1].path,
-            PathBuf::from("packages/example/AGENTS.md")
-        );
+        assert_eq!(files[1].path, PathBuf::from("packages/example/AGENTS.md"));
         assert_eq!(
             files[5].path,
             PathBuf::from("packages/example/.agents/skills/takt-workflow/SKILL.md")

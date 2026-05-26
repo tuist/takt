@@ -1,7 +1,5 @@
 use crate::datastore::{ArtifactRecord, ProducerKind, StorageRef};
-use crate::domain::{
-    ArtifactType, RuntimeProfile, SANDBOX_MICROSANDBOX, SANDBOX_PROCESS,
-};
+use crate::domain::{ArtifactType, RuntimeProfile, SANDBOX_MICROSANDBOX, SANDBOX_PROCESS};
 use crate::query::now_unix_ms;
 use color_eyre::eyre::{Result, bail, eyre};
 use serde::Deserialize;
@@ -127,7 +125,10 @@ pub fn execute_node_handler(input: ExecutionInput) -> Result<ExecutionOutcome> {
         bail!(
             "handler '{}' exited with status {}; stderr tail:\n{}",
             handler_abs.display(),
-            status.code().map(|c| c.to_string()).unwrap_or_else(|| "<signal>".into()),
+            status
+                .code()
+                .map(|c| c.to_string())
+                .unwrap_or_else(|| "<signal>".into()),
             stderr_tail.trim()
         );
     }
@@ -151,7 +152,11 @@ pub fn execute_node_handler(input: ExecutionInput) -> Result<ExecutionOutcome> {
 
     let mut artifacts = Vec::with_capacity(result.artifacts.len());
     for handler_artifact in result.artifacts {
-        let artifact_id = format!("art-{}-{}-1", input.run_id, sanitize_id(&handler_artifact.name));
+        let artifact_id = format!(
+            "art-{}-{}-1",
+            input.run_id,
+            sanitize_id(&handler_artifact.name)
+        );
         let storage_ref = match handler_artifact.artifact_type {
             ArtifactType::Resource => {
                 let value = handler_artifact.value.ok_or_else(|| {
@@ -232,7 +237,9 @@ fn build_handler_command(
             input_path,
             result_path,
         )),
-        SANDBOX_MICROSANDBOX => build_microsandbox_command(input, handler_abs, input_path, result_path),
+        SANDBOX_MICROSANDBOX => {
+            build_microsandbox_command(input, handler_abs, input_path, result_path)
+        }
         other => bail!(
             "unsupported sandbox '{}' on runtime profile (supported: '{}' | '{}')",
             other,
@@ -330,7 +337,8 @@ fn apply_takt_env_via_msb(
     input_path: &Path,
     result_path: &Path,
 ) {
-    cmd.arg("--env").arg(format!("TAKT_RUN_ID={}", input.run_id));
+    cmd.arg("--env")
+        .arg(format!("TAKT_RUN_ID={}", input.run_id));
     cmd.arg("--env")
         .arg(format!("TAKT_CAPABILITY={}", input.capability));
     cmd.arg("--env").arg(format!(

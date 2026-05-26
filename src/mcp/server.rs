@@ -273,10 +273,7 @@ impl TaktMcpServer {
     async fn run_list(
         &self,
         Parameters(params): Parameters<RunListParams>,
-    ) -> Result<
-        Json<crate::query::ListEnvelope<crate::datastore::RunRecord>>,
-        ErrorData,
-    > {
+    ) -> Result<Json<crate::query::ListEnvelope<crate::datastore::RunRecord>>, ErrorData> {
         let repo = load_package(params.package_dir).map_err(tool_error)?;
         let kind = params
             .kind
@@ -327,10 +324,7 @@ impl TaktMcpServer {
     async fn artifact_list(
         &self,
         Parameters(params): Parameters<ArtifactListParams>,
-    ) -> Result<
-        Json<crate::query::ListEnvelope<crate::datastore::ArtifactRecord>>,
-        ErrorData,
-    > {
+    ) -> Result<Json<crate::query::ListEnvelope<crate::datastore::ArtifactRecord>>, ErrorData> {
         let repo = load_package(params.package_dir).map_err(tool_error)?;
         let input = crate::core::ArtifactListInput {
             run: params.run,

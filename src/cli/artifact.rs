@@ -37,7 +37,10 @@ impl ArtifactCommand {
                     limit: command.limit,
                     predicates: command.r#where,
                 };
-                print_data(&core::artifact_list_envelope(&repo, &input)?, context.format)
+                print_data(
+                    &core::artifact_list_envelope(&repo, &input)?,
+                    context.format,
+                )
             }
             ArtifactSubcommand::Get(command) => match core::get_artifact(&repo, &command.id)? {
                 Some(artifact) => print_data(

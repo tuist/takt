@@ -339,7 +339,7 @@ impl DatastoreProvider for FilesystemProvider {
             }
             records.push(record);
         }
-        records.sort_by(|a, b| b.started_at_unix_ms.cmp(&a.started_at_unix_ms));
+        records.sort_by_key(|record| std::cmp::Reverse(record.started_at_unix_ms));
         Ok(records)
     }
 
@@ -406,7 +406,7 @@ impl DatastoreProvider for FilesystemProvider {
             }
             records.push(record);
         }
-        records.sort_by(|a, b| b.created_at_unix_ms.cmp(&a.created_at_unix_ms));
+        records.sort_by_key(|record| std::cmp::Reverse(record.created_at_unix_ms));
         Ok(records)
     }
 }
@@ -428,7 +428,9 @@ pub fn open_provider(
     }
 }
 
-pub fn open_repo_datastore(repo_root: &Path) -> Result<(LoadedRepoConfig, Box<dyn DatastoreProvider>)> {
+pub fn open_repo_datastore(
+    repo_root: &Path,
+) -> Result<(LoadedRepoConfig, Box<dyn DatastoreProvider>)> {
     let loaded = load_repo_config(repo_root)?;
     let provider = open_provider(repo_root, &loaded.config.datastore)?;
     Ok((loaded, provider))

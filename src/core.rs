@@ -2,11 +2,12 @@ use crate::datastore::{
     ArtifactRecord, ListArtifactsQuery, ListRunsQuery, RunKind, RunMode, RunRecord, RunSource,
     RunStatus, open_repo_datastore,
 };
-use crate::execution::{ExecutionInput, execute_node_handler};
 use crate::domain::{
     API_VERSION, ActionDefinition, CapabilityDefinition, DEFAULT_RUNTIME_NAME, HandlerDefinition,
     NetworkPolicy, PackageManifest, RuntimeProfile, SANDBOX_PROCESS, WorkflowDefinition,
 };
+use crate::execution::{ExecutionInput, execute_node_handler};
+use crate::query::{new_run_id, now_unix_ms};
 use crate::scaffold::{CodingAgent, ScaffoldFile, package_bootstrap_files, package_project_root};
 use clap::ValueEnum;
 use color_eyre::eyre::{Result, bail, eyre};
@@ -15,7 +16,6 @@ use schemars::{JsonSchema, Schema};
 use serde::Serialize;
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
-use crate::query::{new_run_id, now_unix_ms};
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -714,7 +714,10 @@ pub fn get_run(repo: &Repository, id: &str) -> Result<Option<RunRecord>> {
     provider.get_run(id)
 }
 
-pub fn list_artifacts(repo: &Repository, query: &ListArtifactsQuery) -> Result<Vec<ArtifactRecord>> {
+pub fn list_artifacts(
+    repo: &Repository,
+    query: &ListArtifactsQuery,
+) -> Result<Vec<ArtifactRecord>> {
     let (_loaded, provider) = open_repo_datastore(&repo.root)?;
     provider.list_artifacts(query)
 }
@@ -921,7 +924,10 @@ pub fn execute_action_run(
         CapabilityResolution::Invalid { reason, .. } => {
             bail!("cannot execute invalid capability reference: {reason}")
         }
-        CapabilityResolution::External { package, capability } => bail!(
+        CapabilityResolution::External {
+            package,
+            capability,
+        } => bail!(
             "cannot execute external capability '{package}#{capability}': external resolution is not implemented yet"
         ),
     };
@@ -965,7 +971,11 @@ pub fn execute_action_run(
         provider.put_run(&base_record)?;
     }
 
-    let scratch_root = repo.root.join(".takt").join("datastore").join("runs-scratch");
+    let scratch_root = repo
+        .root
+        .join(".takt")
+        .join("datastore")
+        .join("runs-scratch");
     let blobs_root = repo.root.join(".takt").join("datastore").join("blobs");
     let execution_input = ExecutionInput {
         run_id: id.clone(),
@@ -1238,23 +1248,22 @@ pub fn execute_workflow_run(
     };
 
     for step in &ordered_steps {
-        let expanded_with =
-            match crate::template::expand_inputs(&step.with, &template_ctx) {
-                Ok(map) => map,
-                Err(error) => {
-                    overall_status = RunStatus::Failed;
-                    let text = format!("{error:#}");
-                    error_message = Some(format!(
-                        "step '{}' failed during template expansion: {}",
-                        step.name, text
-                    ));
-                    message = format!(
-                        "Workflow '{}' stopped because step '{}' had an invalid template expression.",
-                        document.workflow.name, step.name
-                    );
-                    break;
-                }
-            };
+        let expanded_with = match crate::template::expand_inputs(&step.with, &template_ctx) {
+            Ok(map) => map,
+            Err(error) => {
+                overall_status = RunStatus::Failed;
+                let text = format!("{error:#}");
+                error_message = Some(format!(
+                    "step '{}' failed during template expansion: {}",
+                    step.name, text
+                ));
+                message = format!(
+                    "Workflow '{}' stopped because step '{}' had an invalid template expression.",
+                    document.workflow.name, step.name
+                );
+                break;
+            }
+        };
 
         let mut step_inputs = inputs.clone();
         for (key, value) in expanded_with {
@@ -1266,8 +1275,7 @@ pub fn execute_workflow_run(
             step_name: step.name.clone(),
         };
 
-        let action_result =
-            execute_action_run(repo, &step.uses, step_inputs, persist, step_source);
+        let action_result = execute_action_run(repo, &step.uses, step_inputs, persist, step_source);
         match action_result {
             Ok(action_output) => {
                 child_run_ids.push(action_output.run.id.clone());
@@ -1301,10 +1309,7 @@ pub fn execute_workflow_run(
             }
         }
     }
-    let step_outputs: BTreeMap<String, Value> = template_ctx
-        .step_outputs
-        .into_iter()
-        .collect();
+    let step_outputs: BTreeMap<String, Value> = template_ctx.step_outputs.into_iter().collect();
 
     let finished_at_unix_ms = now_unix_ms()?;
     let output_value = if step_outputs.is_empty() {
@@ -1518,7 +1523,9 @@ fn workflow_has_cycle(workflow: &WorkflowDefinition) -> bool {
         .any(|step| visit(&step.name, workflow, &mut visiting, &mut visited))
 }
 
-fn topological_step_order(workflow: &WorkflowDefinition) -> Result<Vec<crate::domain::WorkflowStep>> {
+fn topological_step_order(
+    workflow: &WorkflowDefinition,
+) -> Result<Vec<crate::domain::WorkflowStep>> {
     use std::collections::BTreeSet;
 
     if workflow_has_cycle(workflow) {
@@ -1634,4 +1641,3 @@ fn resolve_capability_reference(repo: &Repository, reference: &str) -> Capabilit
             reference: reference.into(),
         })
 }
-

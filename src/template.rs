@@ -144,7 +144,7 @@ fn resolve_steps(rest: &[&str], ctx: &TemplateContext) -> Result<Value> {
     let step_name = *step_name;
 
     match tail.split_first() {
-        Some((&"run_id", remainder)) if remainder.is_empty() => ctx
+        Some((&"run_id", [])) => ctx
             .step_run_ids
             .get(step_name)
             .map(|id| Value::String(id.clone()))
@@ -213,7 +213,11 @@ mod tests {
 
     #[test]
     fn exact_match_preserves_int() {
-        let v = expand_value(&Value::String("${{ steps.first.output.id }}".into()), &ctx()).unwrap();
+        let v = expand_value(
+            &Value::String("${{ steps.first.output.id }}".into()),
+            &ctx(),
+        )
+        .unwrap();
         assert_eq!(v, json!(42));
     }
 
@@ -239,21 +243,13 @@ mod tests {
 
     #[test]
     fn inputs_shortcut_works() {
-        let v = expand_value(
-            &Value::String("${{ inputs.retries }}".into()),
-            &ctx(),
-        )
-        .unwrap();
+        let v = expand_value(&Value::String("${{ inputs.retries }}".into()), &ctx()).unwrap();
         assert_eq!(v, json!(3));
     }
 
     #[test]
     fn run_id_resolution() {
-        let v = expand_value(
-            &Value::String("${{ steps.first.run_id }}".into()),
-            &ctx(),
-        )
-        .unwrap();
+        let v = expand_value(&Value::String("${{ steps.first.run_id }}".into()), &ctx()).unwrap();
         assert_eq!(v, Value::String("run-12345".into()));
     }
 
@@ -264,7 +260,10 @@ mod tests {
             &ctx(),
         )
         .unwrap_err();
-        assert!(err.to_string().contains("step 'missing' produced no output"));
+        assert!(
+            err.to_string()
+                .contains("step 'missing' produced no output")
+        );
     }
 
     #[test]

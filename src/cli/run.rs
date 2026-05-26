@@ -1,6 +1,6 @@
 use crate::cli::support::{CommandContext, print_data};
 use crate::core;
-use crate::datastore::{RunStatus, RunKind, RunRecord, RunSource};
+use crate::datastore::{RunKind, RunRecord, RunSource, RunStatus};
 use clap::{Args, Subcommand, ValueEnum};
 use color_eyre::eyre::{Result, bail};
 use schemars::JsonSchema;
