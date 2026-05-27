@@ -1,0 +1,20 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "takt-website",
+  "main": "worker/index.js",
+  "compatibility_date": "2026-05-27",
+  "workers_dev": true,
+  "preview_urls": true,
+  // Route intentionally omitted; the production custom domain is configured
+  // in the Cloudflare dashboard or via a follow-up PR once it is decided.
+  "assets": {
+    "directory": "./_site",
+    "binding": "ASSETS",
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "404-page",
+    "run_worker_first": true
+  },
+  "observability": {
+    "enabled": true
+  }
+}
