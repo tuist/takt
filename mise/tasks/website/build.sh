@@ -2,7 +2,7 @@
 #MISE description="Build the Takt marketing website"
 set -euo pipefail
 
-cd "$(dirname "$0")/../../../website"
+cd "$MISE_PROJECT_ROOT/website"
 
 aube install --frozen-lockfile
 aube run build
