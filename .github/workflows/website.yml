@@ -40,7 +40,7 @@ jobs:
     name: Build
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4.0.1
         with:
           version: ${{ env.MISE_VERSION }}
@@ -48,7 +48,7 @@ jobs:
           cache: true
       - name: Build website
         run: mise run website:build
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: website
           path: website/_site
@@ -61,12 +61,12 @@ jobs:
     runs-on: ubuntu-24.04
     environment:
       name: production
-      url: https://takt-website.workers.dev
+      url: https://takt.tuist.dev
     defaults:
       run:
         working-directory: website
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4.0.1
         with:
           version: ${{ env.MISE_VERSION }}
@@ -76,7 +76,7 @@ jobs:
         run: mise run website:build
         working-directory: ${{ github.workspace }}
       - name: Deploy to Cloudflare Workers
-        uses: cloudflare/wrangler-action@9acf94ace14e7dc412b076f2c5c20b8ce93c79cd # v3
+        uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4.0.0
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
