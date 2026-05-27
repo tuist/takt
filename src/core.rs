@@ -402,11 +402,13 @@ pub fn install_dependencies(repo: &Repository, force: bool) -> Result<InstallOut
                         ensure_cached_package_view(
                             repo,
                             &registry,
-                            &name,
-                            &specifier,
-                            &existing.version,
-                            &existing.resolved,
-                            &existing.integrity,
+                            CachedPackageRequest {
+                                package: &name,
+                                specifier: &specifier,
+                                version: &existing.version,
+                                resolved: &existing.resolved,
+                                integrity: &existing.integrity,
+                            },
                             false,
                         )?,
                     )
@@ -1817,34 +1819,64 @@ fn resolve_and_materialize_dependency(
     })?;
     let resolved = version_document.dist.tarball.clone();
     let package_path = ensure_cached_package_view(
-        repo, registry, package, specifier, &version, &resolved, &integrity, force,
+        repo,
+        registry,
+        CachedPackageRequest {
+            package,
+            specifier,
+            version: &version,
+            resolved: &resolved,
+            integrity: &integrity,
+        },
+        force,
     )?;
     Ok((version, resolved, integrity, package_path))
+}
+
+struct CachedPackageRequest<'a> {
+    package: &'a str,
+    specifier: &'a str,
+    version: &'a str,
+    resolved: &'a str,
+    integrity: &'a str,
 }
 
 fn ensure_cached_package_view(
     repo: &Repository,
     config: &RegistryConfig,
-    package: &str,
-    specifier: &str,
-    version: &str,
-    resolved: &str,
-    integrity: &str,
+    request: CachedPackageRequest<'_>,
     force: bool,
 ) -> Result<PathBuf> {
     let index = if !force {
-        load_cached_package_index(&repo.store_root, package, version, Some(integrity))
+        load_cached_package_index(
+            &repo.store_root,
+            request.package,
+            request.version,
+            Some(request.integrity),
+        )
     } else {
         None
     };
     let index = match index {
         Some(index) => index,
         None => fetch_registry_package_index(
-            repo, config, package, specifier, version, resolved, integrity,
+            repo,
+            config,
+            request.package,
+            request.specifier,
+            request.version,
+            request.resolved,
+            request.integrity,
         )?,
     };
 
-    materialize_package_view(&repo.cache_root, package, version, integrity, &index)
+    materialize_package_view(
+        &repo.cache_root,
+        request.package,
+        request.version,
+        request.integrity,
+        &index,
+    )
 }
 
 fn fetch_registry_package_index(
