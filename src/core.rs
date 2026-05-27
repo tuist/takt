@@ -2,27 +2,35 @@ use crate::domain::{
     API_VERSION, ActionDefinition, CapabilityDefinition, HandlerDefinition, LockedPackage,
     PackageJsonManifest, PackageManifest, TaktLockfile, WorkflowDefinition,
 };
+use crate::registry::{
+    RegistryConfig, auth_token_for_url, fetch_registry_package_document, load_registry_config,
+    select_dependency_version,
+};
 use crate::scaffold::{CodingAgent, ScaffoldFile, package_bootstrap_files, package_project_root};
+use crate::store::{
+    PackageIndex, import_npm_tarball_into_store, load_cached_package_index,
+    materialize_package_view, resolve_cache_root, resolve_store_root, save_cached_package_index,
+    virtual_store_root,
+};
 use base64::Engine;
 use clap::ValueEnum;
 use color_eyre::eyre::{Result, bail, eyre};
-use flate2::{Compression, read::GzDecoder, write::GzEncoder};
+use flate2::{Compression, write::GzEncoder};
 use reqwest::blocking::Client;
 use schemars::schema_for;
 use schemars::{JsonSchema, Schema};
 use semver::{Version, VersionReq};
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use serde_json::Value;
 use sha2::{Digest, Sha256, Sha384, Sha512};
 use std::collections::{BTreeMap, BTreeSet};
-use std::env;
 use std::ffi::OsString;
 use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
-use tar::{Archive, Builder, Header};
+use tar::{Builder, Header};
 
 pub const CONCEPT_CHAIN: &str = "package -> capability -> action -> workflow -> run -> artifact";
 pub const EXECUTION_RULE: &str =
@@ -31,12 +39,6 @@ pub const ROOT_MANIFEST_FILENAME: &str = "takt.json";
 pub const PACKAGE_JSON_FILENAME: &str = "package.json";
 pub const LOCKFILE_FILENAME: &str = "takt.lock.json";
 pub const MANIFEST_EXTENSION: &str = "json";
-pub const STORE_DIRECTORY_ENV: &str = "TAKT_STORE_DIR";
-pub const STORE_VERSION: &str = "v1";
-pub const STORE_FILES_SUBDIR: &str = "files";
-pub const STORE_INDEX_SUBDIR: &str = "index";
-pub const STORE_VIEWS_SUBDIR: &str = "virtual-store";
-pub const CACHE_DIRECTORY_NAME: &str = "takt";
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct ConceptsOutput {
@@ -344,7 +346,7 @@ pub fn generate_workflow(
 }
 
 pub fn install_dependencies(repo: &Repository, force: bool) -> Result<InstallOutput> {
-    let registry = load_registry_config(repo)?;
+    let registry = load_registry_config(&repo.root)?;
     let mut lockfile = TaktLockfile::empty();
     let mut installed = BTreeMap::new();
     let mut pending = repo
@@ -518,42 +520,6 @@ pub struct PublishOutput {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub access: Option<PublishAccess>,
     pub published: bool,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-struct NpmPackageDocument {
-    #[serde(rename = "dist-tags", default)]
-    dist_tags: BTreeMap<String, String>,
-    #[serde(default)]
-    versions: BTreeMap<String, NpmVersionDocument>,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-struct NpmVersionDocument {
-    dist: NpmDistDocument,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-struct NpmDistDocument {
-    tarball: String,
-    integrity: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct StoredFile {
-    hex_hash: String,
-    store_path: PathBuf,
-    executable: bool,
-    size: u64,
-}
-
-type PackageIndex = BTreeMap<String, StoredFile>;
-
-#[derive(Debug, Clone)]
-struct RegistryConfig {
-    default_registry: String,
-    scoped_registries: BTreeMap<String, String>,
-    auth_tokens: BTreeMap<String, String>,
 }
 
 #[derive(Debug, Clone)]
@@ -1258,174 +1224,6 @@ where
     Ok(())
 }
 
-fn load_registry_config(repo: &Repository) -> Result<RegistryConfig> {
-    let mut config = RegistryConfig {
-        default_registry: normalize_registry_url("https://registry.npmjs.org/"),
-        scoped_registries: BTreeMap::new(),
-        auth_tokens: BTreeMap::new(),
-    };
-
-    if let Some(home) = env::var_os("HOME") {
-        let user_npmrc = PathBuf::from(home).join(".npmrc");
-        if user_npmrc.exists() {
-            merge_npmrc_file(&mut config, &user_npmrc)?;
-        }
-    }
-
-    let project_npmrc = repo.root.join(".npmrc");
-    if project_npmrc.exists() {
-        merge_npmrc_file(&mut config, &project_npmrc)?;
-    }
-
-    Ok(config)
-}
-
-fn merge_npmrc_file(config: &mut RegistryConfig, path: &Path) -> Result<()> {
-    for raw_line in fs::read_to_string(path)?.lines() {
-        let line = raw_line.trim();
-        if line.is_empty() || line.starts_with('#') || line.starts_with(';') {
-            continue;
-        }
-
-        let Some((raw_key, raw_value)) = line.split_once('=') else {
-            continue;
-        };
-        let key = raw_key.trim();
-        let value = interpolate_env_vars(raw_value.trim())?;
-
-        if key == "registry" {
-            config.default_registry = normalize_registry_url(&value);
-        } else if key.starts_with('@') && key.ends_with(":registry") {
-            let scope = key.trim_end_matches(":registry");
-            config
-                .scoped_registries
-                .insert(scope.to_string(), normalize_registry_url(&value));
-        } else if key.starts_with("//") && key.ends_with(":_authToken") {
-            let host = key
-                .trim_start_matches("//")
-                .trim_end_matches(":_authToken")
-                .to_string();
-            config.auth_tokens.insert(host, value);
-        }
-    }
-
-    Ok(())
-}
-
-fn interpolate_env_vars(value: &str) -> Result<String> {
-    let mut rendered = value.to_string();
-    while let Some(start) = rendered.find("${") {
-        let rest = &rendered[start + 2..];
-        let Some(end_offset) = rest.find('}') else {
-            bail!("unterminated environment variable in npmrc value '{value}'");
-        };
-        let key = &rest[..end_offset];
-        let env_value = env::var(key)
-            .map_err(|_| eyre!("environment variable '{key}' referenced in .npmrc is not set"))?;
-        rendered.replace_range(start..start + 3 + end_offset, &env_value);
-    }
-    Ok(rendered)
-}
-
-fn normalize_registry_url(url: &str) -> String {
-    if url.ends_with('/') {
-        url.to_string()
-    } else {
-        format!("{url}/")
-    }
-}
-
-fn registry_url_for_package<'a>(config: &'a RegistryConfig, package: &str) -> &'a str {
-    package
-        .split_once('/')
-        .and_then(|(scope, _)| config.scoped_registries.get(scope))
-        .map(String::as_str)
-        .unwrap_or(&config.default_registry)
-}
-
-fn auth_token_for_url<'a>(config: &'a RegistryConfig, url: &str) -> Option<&'a str> {
-    let key = registry_auth_key(url);
-    config
-        .auth_tokens
-        .iter()
-        .filter(|(candidate, _)| key.starts_with(candidate.as_str()))
-        .max_by_key(|(candidate, _)| candidate.len())
-        .map(|(_, token)| token.as_str())
-}
-
-fn registry_auth_key(url: &str) -> String {
-    url.trim_start_matches("https://")
-        .trim_start_matches("http://")
-        .to_string()
-}
-
-fn fetch_registry_package_document(
-    config: &RegistryConfig,
-    package: &str,
-) -> Result<NpmPackageDocument> {
-    let registry = registry_url_for_package(config, package);
-    let url = format!("{registry}{}", escape_registry_package_name(package));
-    let client = Client::builder().build()?;
-    let mut request = client.get(&url).header(
-        "accept",
-        "application/vnd.npm.install-v1+json, application/json",
-    );
-    if let Some(token) = auth_token_for_url(config, registry) {
-        request = request.bearer_auth(token);
-    }
-    let response = request.send()?;
-    if !response.status().is_success() {
-        bail!(
-            "failed to resolve dependency '{}': registry returned {}",
-            package,
-            response.status()
-        );
-    }
-    Ok(response.json()?)
-}
-
-fn escape_registry_package_name(name: &str) -> String {
-    name.replace('/', "%2f")
-}
-
-fn select_dependency_version(
-    package: &str,
-    specifier: &str,
-    document: &NpmPackageDocument,
-) -> Result<String> {
-    if let Some(version) = document.dist_tags.get(specifier) {
-        return Ok(version.clone());
-    }
-
-    if document.versions.contains_key(specifier) {
-        return Ok(specifier.to_string());
-    }
-
-    let requirement = VersionReq::parse(specifier).map_err(|error| {
-        eyre!(
-            "dependency '{}' has unsupported specifier '{}': {error}",
-            package,
-            specifier
-        )
-    })?;
-
-    let selected = document
-        .versions
-        .keys()
-        .filter_map(|version| Version::parse(version).ok())
-        .filter(|version| requirement.matches(version))
-        .max()
-        .ok_or_else(|| {
-            eyre!(
-                "dependency '{}' has no versions matching '{}'",
-                package,
-                specifier
-            )
-        })?;
-
-    Ok(selected.to_string())
-}
-
 fn resolve_and_materialize_dependency(
     repo: &Repository,
     registry: &RegistryConfig,
@@ -1478,7 +1276,7 @@ fn ensure_cached_package_view(
         )?,
     };
 
-    materialize_package_view(repo, package, version, integrity, &index)
+    materialize_package_view(&repo.cache_root, package, version, integrity, &index)
 }
 
 fn fetch_registry_package_index(
@@ -1540,410 +1338,6 @@ fn verify_package_integrity(bytes: &[u8], integrity: &str) -> Result<()> {
     if actual != expected {
         bail!("downloaded package failed integrity verification");
     }
-    Ok(())
-}
-
-fn import_npm_tarball_into_store(store_root: &Path, bytes: &[u8]) -> Result<PackageIndex> {
-    fs::create_dir_all(store_root)?;
-    let decoder = GzDecoder::new(bytes);
-    let mut archive = Archive::new(decoder);
-    let mut index = PackageIndex::new();
-
-    for entry in archive.entries()? {
-        let mut entry = entry?;
-        let entry_type = entry.header().entry_type();
-        if entry_type.is_dir()
-            || matches!(
-                entry_type,
-                tar::EntryType::XGlobalHeader
-                    | tar::EntryType::XHeader
-                    | tar::EntryType::GNULongName
-                    | tar::EntryType::GNULongLink
-            )
-        {
-            continue;
-        }
-        if !matches!(
-            entry_type,
-            tar::EntryType::Regular | tar::EntryType::Continuous
-        ) {
-            bail!("tarball entry type {entry_type:?} is not supported");
-        }
-
-        let raw_path = entry.path()?.to_path_buf();
-        let Some(relative) = normalize_tar_entry_path(&raw_path)? else {
-            continue;
-        };
-
-        let mode = entry.header().mode().unwrap_or(0o644);
-        let executable = mode & 0o111 != 0;
-        let mut content = Vec::new();
-        entry.read_to_end(&mut content)?;
-
-        let stored = import_store_file(store_root, &content, executable)?;
-        if index.insert(relative.clone(), stored).is_some() {
-            bail!("tarball contains duplicate path '{}'", relative);
-        }
-    }
-
-    Ok(index)
-}
-
-fn normalize_tar_entry_path(path: &Path) -> Result<Option<String>> {
-    let mut components = path.components();
-    let Some(first) = components.next() else {
-        return Ok(None);
-    };
-    if first.as_os_str() != "package" {
-        return Ok(None);
-    }
-
-    let relative = components.as_path();
-    if relative.as_os_str().is_empty() {
-        return Ok(None);
-    }
-    if relative.components().any(|component| {
-        matches!(
-            component,
-            std::path::Component::ParentDir
-                | std::path::Component::RootDir
-                | std::path::Component::Prefix(_)
-        )
-    }) {
-        bail!("tarball contains an unsafe path '{}'", relative.display());
-    }
-
-    Ok(Some(relative.to_string_lossy().replace('\\', "/")))
-}
-
-fn import_store_file(store_root: &Path, content: &[u8], executable: bool) -> Result<StoredFile> {
-    let hex_hash = blake3::hash(content).to_hex().to_string();
-    let store_path = store_file_path(store_root, &hex_hash);
-    if let Some(parent) = store_path.parent() {
-        fs::create_dir_all(parent)?;
-    }
-
-    if store_path.exists() && store_path.metadata()?.len() != content.len() as u64 {
-        fs::remove_file(&store_path)?;
-    }
-
-    if !store_path.exists() {
-        use std::io::Write;
-        match fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&store_path)
-        {
-            Ok(mut file) => file.write_all(content)?,
-            Err(error)
-                if error.kind() == std::io::ErrorKind::AlreadyExists
-                    && store_path.metadata()?.len() == content.len() as u64 => {}
-            Err(error) => return Err(error.into()),
-        }
-    }
-
-    #[cfg(unix)]
-    if executable {
-        use std::os::unix::fs::PermissionsExt;
-        let mut permissions = store_path.metadata()?.permissions();
-        permissions.set_mode(0o755);
-        fs::set_permissions(&store_path, permissions)?;
-    }
-
-    Ok(StoredFile {
-        hex_hash,
-        store_path,
-        executable,
-        size: content.len() as u64,
-    })
-}
-
-fn store_file_path(store_root: &Path, hex_hash: &str) -> PathBuf {
-    let (shard, suffix) = hex_hash.split_at(2);
-    store_root.join(shard).join(suffix)
-}
-
-fn load_cached_package_index(
-    store_root: &Path,
-    name: &str,
-    version: &str,
-    integrity: Option<&str>,
-) -> Option<PackageIndex> {
-    let index_path = package_index_path(store_root, name, version, integrity).ok()?;
-    let bytes = fs::read(&index_path).ok()?;
-    let index: PackageIndex = serde_json::from_slice(&bytes).ok()?;
-    if package_index_is_stale(&index) {
-        let _ = fs::remove_file(index_path);
-        return None;
-    }
-    Some(index)
-}
-
-fn save_cached_package_index(
-    store_root: &Path,
-    name: &str,
-    version: &str,
-    integrity: Option<&str>,
-    index: &PackageIndex,
-) -> Result<()> {
-    let index_path = package_index_path(store_root, name, version, integrity)?;
-    if let Some(parent) = index_path.parent() {
-        fs::create_dir_all(parent)?;
-    }
-    fs::write(index_path, serde_json::to_vec_pretty(index)?)?;
-    Ok(())
-}
-
-fn package_index_is_stale(index: &PackageIndex) -> bool {
-    !index.values().all(|stored| {
-        stored
-            .store_path
-            .metadata()
-            .map(|metadata| metadata.len() == stored.size)
-            .unwrap_or(false)
-    })
-}
-
-fn package_index_path(
-    store_root: &Path,
-    name: &str,
-    version: &str,
-    integrity: Option<&str>,
-) -> Result<PathBuf> {
-    let filename = format!(
-        "{}@{}.json",
-        encode_store_component(name),
-        encode_store_component(version)
-    );
-    let index_root = store_index_root(store_root);
-    if let Some(integrity) = integrity {
-        let hex = integrity_to_hex(integrity)?;
-        let shard = &hex[..16.min(hex.len())];
-        Ok(index_root.join(shard).join(filename))
-    } else {
-        Ok(index_root.join(filename))
-    }
-}
-
-fn materialize_package_view(
-    repo: &Repository,
-    package: &str,
-    version: &str,
-    integrity: &str,
-    index: &PackageIndex,
-) -> Result<PathBuf> {
-    let package_path =
-        materialized_package_view_path(&repo.cache_root, package, version, integrity);
-    if package_path.join(ROOT_MANIFEST_FILENAME).exists() {
-        return Ok(package_path);
-    }
-    if package_path.exists() {
-        fs::remove_dir_all(&package_path)?;
-    }
-
-    let staging_path = package_path.with_extension(format!("tmp-{}", now_unix_ms()?));
-    if staging_path.exists() {
-        fs::remove_dir_all(&staging_path)?;
-    }
-    fs::create_dir_all(&staging_path)?;
-
-    for (relative_path, stored) in index {
-        let target_path = staging_path.join(relative_path);
-        if let Some(parent) = target_path.parent() {
-            fs::create_dir_all(parent)?;
-        }
-        link_or_copy_file(&stored.store_path, &target_path, stored.executable)?;
-    }
-
-    if !staging_path.join(ROOT_MANIFEST_FILENAME).exists() {
-        bail!(
-            "cached package '{}' at version '{}' does not contain {}",
-            package,
-            version,
-            ROOT_MANIFEST_FILENAME
-        );
-    }
-
-    if let Some(parent) = package_path.parent() {
-        fs::create_dir_all(parent)?;
-    }
-    match fs::rename(&staging_path, &package_path) {
-        Ok(()) => Ok(package_path),
-        Err(_error) if package_path.exists() => {
-            let _ = fs::remove_dir_all(&staging_path);
-            Ok(package_path)
-        }
-        Err(error) => Err(error.into()),
-    }
-}
-
-fn resolve_store_root(repo_root: &Path) -> PathBuf {
-    let repo_local_store = repo_root
-        .join(".takt")
-        .join("store")
-        .join(STORE_VERSION)
-        .join(STORE_FILES_SUBDIR);
-    if repo_local_store.exists() {
-        return repo_local_store;
-    }
-
-    resolve_store_root_from(
-        Some(repo_root),
-        env::var_os(STORE_DIRECTORY_ENV).map(PathBuf::from),
-        env::var_os("XDG_DATA_HOME").map(PathBuf::from),
-        env::var_os("HOME").map(PathBuf::from),
-        env::var_os("LOCALAPPDATA").map(PathBuf::from),
-    )
-}
-
-fn resolve_store_root_from(
-    repo_root: Option<&Path>,
-    configured_store_root: Option<PathBuf>,
-    xdg_data_home: Option<PathBuf>,
-    home: Option<PathBuf>,
-    _local_app_data: Option<PathBuf>,
-) -> PathBuf {
-    if let Some(path) = configured_store_root.filter(|path| !path.as_os_str().is_empty()) {
-        return path;
-    }
-
-    #[cfg(windows)]
-    if let Some(path) = _local_app_data.filter(|path| !path.as_os_str().is_empty()) {
-        return path
-            .join(CACHE_DIRECTORY_NAME)
-            .join("store")
-            .join(STORE_VERSION)
-            .join(STORE_FILES_SUBDIR);
-    }
-
-    if let Some(path) = xdg_data_home.filter(|path| !path.as_os_str().is_empty()) {
-        return path
-            .join(CACHE_DIRECTORY_NAME)
-            .join("store")
-            .join(STORE_VERSION)
-            .join(STORE_FILES_SUBDIR);
-    }
-
-    if let Some(path) = home.filter(|path| !path.as_os_str().is_empty()) {
-        return path
-            .join(".local")
-            .join("share")
-            .join(CACHE_DIRECTORY_NAME)
-            .join("store")
-            .join(STORE_VERSION)
-            .join(STORE_FILES_SUBDIR);
-    }
-
-    repo_root
-        .map(|root| {
-            root.join(".takt")
-                .join("store")
-                .join(STORE_VERSION)
-                .join(STORE_FILES_SUBDIR)
-        })
-        .unwrap_or_else(|| {
-            PathBuf::from(".takt")
-                .join("store")
-                .join(STORE_VERSION)
-                .join(STORE_FILES_SUBDIR)
-        })
-}
-
-fn resolve_cache_root(repo_root: &Path) -> PathBuf {
-    let repo_local_cache = repo_root.join(".takt").join("cache");
-    if repo_local_cache.exists() {
-        return repo_local_cache;
-    }
-
-    resolve_cache_root_from(
-        env::var_os("XDG_CACHE_HOME").map(PathBuf::from),
-        env::var_os("HOME").map(PathBuf::from),
-        env::var_os("LOCALAPPDATA").map(PathBuf::from),
-    )
-}
-
-fn resolve_cache_root_from(
-    xdg_cache_home: Option<PathBuf>,
-    home: Option<PathBuf>,
-    _local_app_data: Option<PathBuf>,
-) -> PathBuf {
-    #[cfg(windows)]
-    if let Some(path) = _local_app_data.filter(|path| !path.as_os_str().is_empty()) {
-        return path.join(CACHE_DIRECTORY_NAME);
-    }
-
-    if let Some(path) = xdg_cache_home.filter(|path| !path.as_os_str().is_empty()) {
-        return path.join(CACHE_DIRECTORY_NAME);
-    }
-
-    if let Some(path) = home.filter(|path| !path.as_os_str().is_empty()) {
-        return path.join(".cache").join(CACHE_DIRECTORY_NAME);
-    }
-
-    PathBuf::from(".takt").join("cache")
-}
-
-fn store_index_root(store_root: &Path) -> PathBuf {
-    store_root
-        .parent()
-        .unwrap_or(store_root)
-        .join(STORE_INDEX_SUBDIR)
-}
-
-fn virtual_store_root(cache_root: &Path) -> PathBuf {
-    cache_root.join(STORE_VIEWS_SUBDIR)
-}
-
-fn materialized_package_view_path(
-    cache_root: &Path,
-    package: &str,
-    version: &str,
-    integrity: &str,
-) -> PathBuf {
-    let key = blake3::hash(format!("{package}\n{version}\n{integrity}\n").as_bytes())
-        .to_hex()
-        .to_string();
-    virtual_store_root(cache_root).join(format!("{}-{}", encode_store_component(package), key))
-}
-
-fn integrity_to_hex(integrity: &str) -> Result<String> {
-    let Some((_, digest)) = integrity.split_once('-') else {
-        bail!("unsupported integrity string '{integrity}'");
-    };
-    Ok(base64::engine::general_purpose::STANDARD
-        .decode(digest)?
-        .iter()
-        .map(|byte| format!("{byte:02x}"))
-        .collect())
-}
-
-fn encode_store_component(value: &str) -> String {
-    let mut encoded = String::with_capacity(value.len());
-    for byte in value.bytes() {
-        let character = byte as char;
-        if character.is_ascii_alphanumeric() || matches!(character, '.' | '-' | '_') {
-            encoded.push(character);
-        } else {
-            encoded.push('_');
-            encoded.push_str(&format!("{byte:02x}"));
-        }
-    }
-    encoded
-}
-
-fn link_or_copy_file(source: &Path, destination: &Path, executable: bool) -> Result<()> {
-    if fs::hard_link(source, destination).is_err() {
-        fs::copy(source, destination)?;
-    }
-
-    #[cfg(unix)]
-    if executable {
-        use std::os::unix::fs::PermissionsExt;
-        let mut permissions = destination.metadata()?.permissions();
-        permissions.set_mode(0o755);
-        fs::set_permissions(destination, permissions)?;
-    }
-
     Ok(())
 }
 
@@ -2393,7 +1787,7 @@ fn resolve_external_capability(
     };
 
     let store_path = match materialize_package_view(
-        repo,
+        &repo.cache_root,
         package,
         &locked_package.version,
         &locked_package.integrity,
@@ -2496,15 +1890,18 @@ fn now_unix_ms() -> Result<u64> {
 #[cfg(test)]
 mod tests {
     use super::{
-        CapabilityResolution, PublishAccess, ROOT_MANIFEST_FILENAME, STORE_FILES_SUBDIR,
-        STORE_VERSION, TaktLockfile, build_publish_tarball, discover_repository, import_store_file,
-        npm_publish_arguments, save_cached_package_index, validate_action_document,
-        write_json_value,
+        CapabilityResolution, PublishAccess, ROOT_MANIFEST_FILENAME, TaktLockfile,
+        build_publish_tarball, discover_repository, npm_publish_arguments,
+        validate_action_document, write_json_value,
     };
     use crate::core::plan_action_run;
     use crate::domain::{
         ActionDefinition, CapabilityDefinition, HandlerDefinition, LockedPackage,
         PackageJsonManifest, PackageManifest, SchemaReference,
+    };
+    use crate::store::{
+        STORE_FILES_SUBDIR, STORE_VERSION, import_store_file, resolve_cache_root_from,
+        resolve_store_root, resolve_store_root_from, save_cached_package_index,
     };
     use base64::Engine;
     use flate2::read::GzDecoder;
@@ -2712,14 +2109,14 @@ mod tests {
             .join(STORE_FILES_SUBDIR);
         fs::create_dir_all(&repo_local_store)?;
 
-        assert_eq!(super::resolve_store_root(temp.path()), repo_local_store);
+        assert_eq!(resolve_store_root(temp.path()), repo_local_store);
         Ok(())
     }
 
     #[test]
     fn resolve_store_root_from_prefers_configured_store_root() {
         let configured = PathBuf::from("/tmp/takt-global-store");
-        let resolved = super::resolve_store_root_from(
+        let resolved = resolve_store_root_from(
             None,
             Some(configured.clone()),
             Some(PathBuf::from("/tmp/xdg-data")),
@@ -2732,7 +2129,7 @@ mod tests {
 
     #[test]
     fn resolve_store_root_from_uses_xdg_data_directory_when_set() {
-        let resolved = super::resolve_store_root_from(
+        let resolved = resolve_store_root_from(
             None,
             None,
             Some(PathBuf::from("/tmp/xdg-data")),
@@ -2752,7 +2149,7 @@ mod tests {
 
     #[test]
     fn resolve_store_root_from_falls_back_to_home_data_directory() {
-        let resolved = super::resolve_store_root_from(
+        let resolved = resolve_store_root_from(
             None,
             None,
             None,
@@ -2774,7 +2171,7 @@ mod tests {
 
     #[test]
     fn resolve_cache_root_from_uses_xdg_cache_directory_when_set() {
-        let resolved = super::resolve_cache_root_from(
+        let resolved = resolve_cache_root_from(
             Some(PathBuf::from("/tmp/xdg-cache")),
             Some(PathBuf::from("/tmp/home")),
             Some(PathBuf::from("/tmp/local-app-data")),
@@ -2785,7 +2182,7 @@ mod tests {
 
     #[test]
     fn resolve_cache_root_from_falls_back_to_home_cache_directory() {
-        let resolved = super::resolve_cache_root_from(
+        let resolved = resolve_cache_root_from(
             None,
             Some(PathBuf::from("/tmp/home")),
             Some(PathBuf::from("/tmp/local-app-data")),
