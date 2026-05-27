@@ -1,0 +1,200 @@
+/*
+ * takt(1) website
+ *
+ * Designed to read like a man page rendered into a browser: one column,
+ * monospace, no marketing chrome, no decorative shapes. Section headings
+ * carry the structure; the prose carries the meaning.
+ */
+
+:root {
+  --bg: #f6f3ec;
+  --ink: #1c1c1c;
+  --ink-soft: #4a4a4a;
+  --ink-muted: #7d7a72;
+  --rule: #1c1c1c;
+  --rule-soft: #c8c2b3;
+  --mark: #b6502a;
+  --col: 72ch;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #131312;
+    --ink: #e9e4d6;
+    --ink-soft: #b8b2a2;
+    --ink-muted: #807c70;
+    --rule: #e9e4d6;
+    --rule-soft: #3a3833;
+    --mark: #e98a5a;
+  }
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--ink);
+}
+
+body {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 15px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.page {
+  max-width: var(--col);
+  margin: 0 auto;
+  padding: 2.5rem 1.5rem 4rem;
+}
+
+a {
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+a:hover {
+  color: var(--mark);
+}
+
+b, strong {
+  font-weight: 700;
+  color: var(--ink);
+}
+
+code {
+  font: inherit;
+  background: transparent;
+  color: var(--ink);
+}
+
+em {
+  font-style: italic;
+  color: var(--ink);
+}
+
+/* Top / bottom man-page lines */
+.topline,
+.bottomline {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  align-items: center;
+  font-size: 13px;
+  color: var(--ink-muted);
+  padding: 0.4rem 0;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.topline { margin-bottom: 2.5rem; }
+.bottomline { margin-top: 4rem; }
+
+.topline-center,
+.bottomline span:nth-child(2) {
+  text-align: center;
+}
+
+.topline-right,
+.bottomline span:nth-child(3) {
+  text-align: right;
+}
+
+.bottomline a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.bottomline a:hover {
+  color: var(--mark);
+}
+
+/* Sections */
+.man-section {
+  margin: 0 0 2.25rem;
+}
+
+.man-section h2 {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  margin: 0 0 0.65rem;
+  color: var(--ink);
+}
+
+.man-section p {
+  margin: 0 0 0.9rem;
+  color: var(--ink-soft);
+}
+
+.man-section p:last-child {
+  margin-bottom: 0;
+}
+
+.aside {
+  border-left: 2px solid var(--rule-soft);
+  padding-left: 0.9rem;
+  color: var(--ink-muted) !important;
+}
+
+/* Indented blocks (synopsis, code) */
+.block {
+  margin: 0.4rem 0 0.4rem 2ch;
+  padding: 0;
+  font: inherit;
+  white-space: pre-wrap;
+  color: var(--ink-soft);
+}
+
+.prompt {
+  color: var(--mark);
+  user-select: none;
+  margin-right: 0.6ch;
+}
+
+/* Definition lists */
+.defs,
+.cmds {
+  margin: 0;
+  padding: 0;
+}
+
+.defs dt,
+.cmds dt {
+  margin: 0.75rem 0 0.1rem 2ch;
+  color: var(--ink);
+}
+
+.defs dd,
+.cmds dd {
+  margin: 0 0 0 6ch;
+  color: var(--ink-soft);
+}
+
+.defs dt:first-child,
+.cmds dt:first-child {
+  margin-top: 0;
+}
+
+/* Mobile: less luxurious indents */
+@media (max-width: 520px) {
+  body { font-size: 14px; }
+  .page { padding: 1.5rem 1rem 3rem; }
+  .topline, .bottomline { font-size: 11px; }
+  .defs dt, .cmds dt { margin-left: 0; }
+  .defs dd, .cmds dd { margin-left: 2ch; }
+  .block { margin-left: 0; }
+}
+
+/* Selection */
+::selection {
+  background: var(--mark);
+  color: var(--bg);
+}

@@ -1,0 +1,15 @@
+{
+  "name": "takt-website",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Marketing site for Takt — a durable substrate for AI agent harnesses.",
+  "scripts": {
+    "build": "eleventy",
+    "dev": "eleventy --serve",
+    "clean": "rm -rf _site"
+  },
+  "devDependencies": {
+    "@11ty/eleventy": "^3.1.5"
+  }
+}

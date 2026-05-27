@@ -1,0 +1,116 @@
+---
+layout: base.njk
+title: "takt(1) — an agent substrate"
+description: "The harness stays the interface; Takt lives underneath. Reusable packages, configurable actions, composable workflows, durable artifacts."
+---
+
+<section class="man-section">
+  <h2>NAME</h2>
+  <p><b>takt</b> — a durable substrate for agents working through a harness.</p>
+</section>
+
+<section class="man-section">
+  <h2>SYNOPSIS</h2>
+<pre class="block"><span class="prompt">$</span> takt init my-package
+<span class="prompt">$</span> takt generate action review
+<span class="prompt">$</span> takt run review</pre>
+</section>
+
+<section class="man-section">
+  <h2>DESCRIPTION</h2>
+  <p>
+    Most of the energy around agents right now is going into layers that sit
+    <em>above</em> them: planners, orchestrators, workflow engines, harnesses
+    on top of harnesses. Takt makes a different bet.
+  </p>
+  <p>
+    The agent harness should stay the main interface. That is where intent is
+    expressed, progress is reviewed, and taste enters the loop. Takt lives
+    underneath it: a place for ad-hoc work to harden into something the agent
+    can reach for again.
+  </p>
+  <p class="aside">
+    Packages can be published to a registry and reused across repositories in
+    the same organization. Actions and workflows stay local to each project,
+    but are built on top of the same shared packages.
+  </p>
+</section>
+
+<section class="man-section">
+  <h2>MODEL</h2>
+  <p>The whole vocabulary is six nouns.</p>
+  <dl class="defs">
+    <dt><b>package</b></dt>
+    <dd>a publishable collection of reusable capabilities.</dd>
+
+    <dt><b>capability</b></dt>
+    <dd>a reusable thing a package can do.</dd>
+
+    <dt><b>action</b></dt>
+    <dd>a project-specific configuration of a capability.</dd>
+
+    <dt><b>workflow</b></dt>
+    <dd>actions wired together into a larger task.</dd>
+
+    <dt><b>run</b></dt>
+    <dd>one execution of an action or workflow.</dd>
+
+    <dt><b>artifact</b></dt>
+    <dd>the durable output produced by a run.</dd>
+  </dl>
+</section>
+
+<section class="man-section">
+  <h2>COMMANDS</h2>
+  <dl class="cmds">
+    <dt><code>takt concepts</code></dt>
+    <dd>explain the core nouns.</dd>
+
+    <dt><code>takt schema</code></dt>
+    <dd>emit machine-readable schemas.</dd>
+
+    <dt><code>takt init</code></dt>
+    <dd>scaffold a package plus <code>package.json</code>.</dd>
+
+    <dt><code>takt generate action</code> · <code>takt generate workflow</code></dt>
+    <dd>create starter manifests.</dd>
+
+    <dt><code>takt install</code></dt>
+    <dd>resolve <code>package.json</code> deps into the content-addressed store and link project skills.</dd>
+
+    <dt><code>takt publish</code></dt>
+    <dd>pack and publish through npm. Use <code>--access public</code> for first public scoped publishes.</dd>
+
+    <dt><code>takt validate</code></dt>
+    <dd>check package and manifest correctness.</dd>
+
+    <dt><code>takt run</code></dt>
+    <dd>plan and execute action and workflow runs.</dd>
+
+    <dt><code>takt mcp</code></dt>
+    <dd>expose the same model through MCP so agents can drive it directly.</dd>
+  </dl>
+</section>
+
+<section class="man-section">
+  <h2>GET STARTED</h2>
+  <p>
+    Scaffold a Takt package without installing anything —
+    <a href="https://mise.jdx.dev">mise</a> will fetch the latest release into
+    a cache and run it in place:
+  </p>
+<pre class="block"><span class="prompt">$</span> mise x github:tuist/takt -- takt init my-package</pre>
+  <p>
+    Pin Takt to a project when you are ready by adding it to your
+    <code>mise.toml</code>, or read the
+    <a href="https://github.com/tuist/takt">README</a> on GitHub.
+  </p>
+</section>
+
+<section class="man-section">
+  <h2>SEE ALSO</h2>
+  <p>
+    <a href="https://github.com/tuist/takt">github.com/tuist/takt</a>,
+    <a href="https://modelcontextprotocol.io">Model Context Protocol</a>.
+  </p>
+</section>
