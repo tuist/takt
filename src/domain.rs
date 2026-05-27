@@ -4,6 +4,7 @@ use serde_json::Value;
 use std::collections::BTreeMap;
 
 pub const API_VERSION: &str = "takt.dev/v1alpha1";
+pub const LOCKFILE_VERSION: u32 = 1;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct PackageManifest {
@@ -15,6 +16,33 @@ pub struct PackageManifest {
     pub node: String,
     #[serde(default)]
     pub capabilities: BTreeMap<String, CapabilityDefinition>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct PackageJsonManifest {
+    pub name: String,
+    pub version: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub dependencies: BTreeMap<String, String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub files: Vec<String>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+pub struct TaktLockfile {
+    pub lockfile_version: u32,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub packages: BTreeMap<String, LockedPackage>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct LockedPackage {
+    pub specifier: String,
+    pub version: String,
+    pub resolved: String,
+    pub integrity: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -136,6 +164,48 @@ impl PackageManifest {
             description,
             node: "22.12.0".into(),
             capabilities,
+        }
+    }
+}
+
+impl PackageJsonManifest {
+    pub fn starter(
+        name: String,
+        version: String,
+        description: Option<String>,
+        dependencies: BTreeMap<String, String>,
+    ) -> Self {
+        Self {
+            name,
+            version,
+            description,
+            dependencies,
+            files: vec![
+                "takt.json".into(),
+                "handlers".into(),
+                "schemas".into(),
+                ".agents/skills".into(),
+                "README.md".into(),
+                "LICENSE".into(),
+            ],
+        }
+    }
+
+    pub fn from_package_manifest(package: &PackageManifest) -> Self {
+        Self::starter(
+            package.name.clone(),
+            package.version.clone(),
+            package.description.clone(),
+            BTreeMap::new(),
+        )
+    }
+}
+
+impl TaktLockfile {
+    pub fn empty() -> Self {
+        Self {
+            lockfile_version: LOCKFILE_VERSION,
+            packages: BTreeMap::new(),
         }
     }
 }

@@ -1,7 +1,9 @@
 mod concepts;
 mod generate;
 mod init;
+mod install;
 mod mcp;
+mod publish;
 mod run;
 mod schema;
 mod support;
@@ -12,7 +14,9 @@ use color_eyre::eyre::Result;
 use concepts::ConceptsCommand;
 use generate::GenerateCommand;
 use init::InitCommand;
+use install::InstallCommand;
 use mcp::McpCommand;
+use publish::PublishCommand;
 use run::RunCommand;
 use schema::SchemaCommand;
 use std::path::PathBuf;
@@ -61,6 +65,8 @@ impl Cli {
             Command::Concepts(command) => command.run(context),
             Command::Init(command) => command.run(context),
             Command::Generate(command) => command.run(context),
+            Command::Install(command) => command.run(context),
+            Command::Publish(command) => command.run(context),
             Command::Schema(command) => command.run(context),
             Command::Validate(command) => command.run(context),
             Command::Run(command) => command.run(context),
@@ -78,6 +84,10 @@ enum Command {
     /// Generate Takt actions and workflows
     #[command(visible_alias = "g")]
     Generate(GenerateCommand),
+    /// Resolve and install package dependencies into the global content-addressed Takt store
+    Install(InstallCommand),
+    /// Publish the current package to the configured npm registry
+    Publish(PublishCommand),
     /// Emit machine-readable schemas for Takt domain objects
     Schema(SchemaCommand),
     /// Validate package, action, and workflow manifests

@@ -29,8 +29,10 @@ If you are new to Takt, start with these concepts:
 
 - `takt concepts` to explain the core nouns
 - `takt schema` to emit machine-readable schemas
-- `takt init` to scaffold a package
+- `takt init` to scaffold a package plus `package.json`
 - `takt generate action` and `takt generate workflow` to create starter manifests
+- `takt install` to resolve `package.json` dependencies into the global content-addressed Takt store and project local skill links
+- `takt publish` to pack and publish the current package through npm, with `--access public` for first public scoped publishes
 - `takt validate` to check package and manifest correctness
 - `takt run` to plan action and workflow runs
 - `takt mcp` to expose the same model through MCP

@@ -54,6 +54,8 @@ The current Rust prototype focuses on two foundations:
 - `takt schema` for inspectable domain schemas
 - `takt init`, `takt generate action`, and `takt generate workflow` for
   starter manifests
+- `takt install` for resolving `package.json` dependencies into a global content-addressed Takt store, while projecting skills into the current repository
+- `takt publish` for packaging and publishing a Takt package through npm, including npm access flags for scoped packages
 - `takt validate` for package and manifest checks
 - `takt run` for planned action and workflow runs, persisted under `.takt/runs/`
 
