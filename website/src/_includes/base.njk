@@ -3,16 +3,91 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{{ title or "takt(1)" }}</title>
-    <meta name="description" content="{{ description or 'An agent substrate. The harness stays the interface; Takt lives underneath.' }}" />
+
+    <title>{{ seo.title }}</title>
+    <meta name="description" content="{{ seo.description }}" />
+    <link rel="canonical" href="{{ seo.canonical }}" />
+    <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1" />
+    <meta name="author" content="{{ site.author.name }}" />
+    <meta name="generator" content="Eleventy" />
+    <meta name="theme-color" content="#f6f3ec" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#131312" media="(prefers-color-scheme: dark)" />
+    <meta name="color-scheme" content="light dark" />
+
     <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml" />
+    <link rel="alternate icon" href="/assets/favicon.svg" />
+
+    <meta property="og:type" content="{{ seo.ogType }}" />
+    <meta property="og:site_name" content="{{ site.name }}" />
+    <meta property="og:title" content="{{ seo.title }}" />
+    <meta property="og:description" content="{{ seo.description }}" />
+    <meta property="og:url" content="{{ seo.canonical }}" />
+    <meta property="og:image" content="{{ seo.image }}" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:alt" content="{{ seo.imageAlt }}" />
+    <meta property="og:locale" content="{{ site.locale }}" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="{{ seo.title }}" />
+    <meta name="twitter:description" content="{{ seo.description }}" />
+    <meta name="twitter:image" content="{{ seo.image }}" />
+    <meta name="twitter:image:alt" content="{{ seo.imageAlt }}" />
+    <meta name="twitter:site" content="{{ site.twitter }}" />
+    <meta name="twitter:creator" content="{{ site.twitter }}" />
+
     <link rel="stylesheet" href="/assets/style.css" />
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebSite",
+            "@id": "{{ site.url }}/#website",
+            "url": "{{ site.url }}/",
+            "name": "{{ site.name }}",
+            "description": "{{ site.description }}",
+            "inLanguage": "en",
+            "publisher": { "@id": "{{ site.url }}/#org" }
+          },
+          {
+            "@type": "Organization",
+            "@id": "{{ site.url }}/#org",
+            "name": "{{ site.author.name }}",
+            "url": "{{ site.author.url }}"
+          },
+          {
+            "@type": "SoftwareApplication",
+            "@id": "{{ site.url }}/#takt",
+            "name": "Takt",
+            "applicationCategory": "DeveloperApplication",
+            "operatingSystem": "macOS, Linux, Windows",
+            "url": "{{ site.url }}/",
+            "downloadUrl": "{{ site.repo }}/releases",
+            "license": "https://opensource.org/licenses/MIT",
+            "description": "{{ site.description }}",
+            "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+          },
+          {
+            "@type": "WebPage",
+            "@id": "{{ seo.canonical }}#webpage",
+            "url": "{{ seo.canonical }}",
+            "name": "{{ seo.title }}",
+            "description": "{{ seo.description }}",
+            "isPartOf": { "@id": "{{ site.url }}/#website" },
+            "primaryImageOfPage": "{{ seo.image }}"
+          }
+        ]
+      }
+    </script>
   </head>
   <body>
     <div class="page">
       <header class="topline">
         <span class="topline-left">takt(1)</span>
-        <span class="topline-center">an agent substrate</span>
+        <span class="topline-center">{{ site.tagline }}</span>
         <span class="topline-right">tuist/takt</span>
       </header>
 
@@ -20,7 +95,7 @@
 
       <footer class="bottomline">
         <span>takt(1)</span>
-        <span>MIT · <a href="https://github.com/tuist/takt">github.com/tuist/takt</a></span>
+        <span>MIT · <a href="{{ site.repo }}">github.com/tuist/takt</a></span>
         <span>tuist/takt</span>
       </footer>
     </div>
