@@ -61,7 +61,7 @@ jobs:
     runs-on: ubuntu-24.04
     environment:
       name: production
-      url: https://takt-website.workers.dev
+      url: https://takt.tuist.dev
     defaults:
       run:
         working-directory: website
