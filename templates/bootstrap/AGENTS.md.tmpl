@@ -11,6 +11,7 @@ This package is named `{{package_name}}`.
 5. If the CLI shape is unclear, inspect it with `takt concepts --format toon` and `takt schema all --format toon`.
 6. Treat CLI TOON output as authoritative. Skills should route to commands, not duplicate command behavior.
 7. Use Conventional Commit style for pull request titles, for example `refactor(package): simplify package node version`.
+8. Package dependencies live in `package.json`. Resolve them with `takt install`, which stores package files in the global content-addressed Takt store and projects skills into this repository. Publish with `takt publish` (`--access public` for first public scoped publishes).
 
 ## Skills
 
@@ -41,6 +42,7 @@ For machine-readable command results, prefer:
 
 - `takt concepts --format toon`
 - `takt schema all --format toon`
+- `takt install --format toon`
 - `takt validate all --format toon`
 - `takt run action <name> --format toon`
 - `takt run workflow <name> --format toon`
