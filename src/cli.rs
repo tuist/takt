@@ -1,3 +1,4 @@
+mod artifact;
 mod concepts;
 mod generate;
 mod init;
@@ -9,6 +10,7 @@ mod schema;
 mod support;
 mod validate;
 
+use artifact::ArtifactCommand;
 use clap::{Parser, Subcommand};
 use color_eyre::eyre::Result;
 use concepts::ConceptsCommand;
@@ -70,6 +72,7 @@ impl Cli {
             Command::Schema(command) => command.run(context),
             Command::Validate(command) => command.run(context),
             Command::Run(command) => command.run(context),
+            Command::Artifact(command) => command.run(context),
             Command::Mcp(command) => command.run(context),
         }
     }
@@ -94,6 +97,8 @@ enum Command {
     Validate(ValidateCommand),
     /// Plan a package action or workflow run
     Run(RunCommand),
+    /// Inspect artifacts persisted in the Takt datastore
+    Artifact(ArtifactCommand),
     /// Start the Takt MCP server
     Mcp(McpCommand),
 }

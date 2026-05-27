@@ -1,8 +1,9 @@
 use crate::mcp::helpers::{load_package, tool_error};
 use crate::mcp::output::SchemaGetOutput;
 use crate::mcp::params::{
-    ActionGenerateParams, ActionSelectorParams, PackageInitParams, PackageScopedParams,
-    RunPlanParams, SchemaGetParams, WorkflowGenerateParams, WorkflowSelectorParams,
+    ActionGenerateParams, ActionRunParams, ActionSelectorParams, ArtifactGetParams,
+    ArtifactListParams, PackageInitParams, PackageScopedParams, RunGetParams, RunListParams,
+    SchemaGetParams, WorkflowGenerateParams, WorkflowRunParams, WorkflowSelectorParams,
 };
 use crate::scaffold::CodingAgent;
 use color_eyre::eyre::Result;
@@ -70,10 +71,13 @@ impl TaktMcpServer {
             "capability" => crate::core::SchemaTarget::Capability,
             "action" => crate::core::SchemaTarget::Action,
             "workflow" => crate::core::SchemaTarget::Workflow,
+            "run" => crate::core::SchemaTarget::Run,
+            "artifact" => crate::core::SchemaTarget::Artifact,
+            "config" => crate::core::SchemaTarget::Config,
             other => {
                 return Err(ErrorData::invalid_params(
                     format!(
-                        "invalid schema target '{other}', expected one of all, package, capability, action, workflow"
+                        "invalid schema target '{other}', expected one of all, package, capability, action, workflow, run, artifact, config"
                     ),
                     None,
                 ));
@@ -199,41 +203,185 @@ impl TaktMcpServer {
     }
 
     #[tool(
-        name = "action_run_plan",
-        description = "Resolve and persist a planned action run without executing it"
+        name = "action_run",
+        description = "Invoke an action's capability handler. Persists a Succeeded or Failed run record plus any emitted artifacts. Pass plan_only=true to validate + resolve without invoking the handler."
     )]
-    async fn action_run_plan(
+    async fn action_run(
         &self,
-        Parameters(params): Parameters<RunPlanParams>,
+        Parameters(params): Parameters<ActionRunParams>,
     ) -> Result<Json<crate::core::ActionRunOutput>, ErrorData> {
         let repo = load_package(params.package_dir).map_err(tool_error)?;
-        crate::core::plan_action_run(
-            &repo,
-            &params.selector,
-            params.inputs.unwrap_or_default(),
-            params.persist.unwrap_or(true),
-        )
+        let inputs = params.inputs.unwrap_or_default();
+        let persist = params.persist.unwrap_or(true);
+        if params.plan_only.unwrap_or(false) {
+            crate::core::plan_action_run(
+                &repo,
+                &params.selector,
+                inputs,
+                persist,
+                crate::datastore::RunSource::Mcp,
+            )
+        } else {
+            crate::core::execute_action_run(
+                &repo,
+                &params.selector,
+                inputs,
+                persist,
+                crate::datastore::RunSource::Mcp,
+            )
+        }
         .map(Json)
         .map_err(tool_error)
     }
 
     #[tool(
-        name = "workflow_run_plan",
-        description = "Resolve and persist a planned workflow run without executing it"
+        name = "workflow_run",
+        description = "Execute a workflow by running each step in topological order. Pass plan_only=true to validate + resolve without invoking any handler."
     )]
-    async fn workflow_run_plan(
+    async fn workflow_run(
         &self,
-        Parameters(params): Parameters<RunPlanParams>,
+        Parameters(params): Parameters<WorkflowRunParams>,
     ) -> Result<Json<crate::core::WorkflowRunOutput>, ErrorData> {
         let repo = load_package(params.package_dir).map_err(tool_error)?;
-        crate::core::plan_workflow_run(
-            &repo,
-            &params.selector,
-            params.inputs.unwrap_or_default(),
-            params.persist.unwrap_or(true),
-        )
+        let inputs = params.inputs.unwrap_or_default();
+        let persist = params.persist.unwrap_or(true);
+        if params.plan_only.unwrap_or(false) {
+            crate::core::plan_workflow_run(
+                &repo,
+                &params.selector,
+                inputs,
+                persist,
+                crate::datastore::RunSource::Mcp,
+            )
+        } else {
+            crate::core::execute_workflow_run(
+                &repo,
+                &params.selector,
+                inputs,
+                persist,
+                crate::datastore::RunSource::Mcp,
+            )
+        }
         .map(Json)
         .map_err(tool_error)
+    }
+
+    #[tool(
+        name = "run_list",
+        description = "List persisted runs from the datastore. Filter by kind, status, age, and limit."
+    )]
+    async fn run_list(
+        &self,
+        Parameters(params): Parameters<RunListParams>,
+    ) -> Result<Json<crate::query::ListEnvelope<crate::datastore::RunRecord>>, ErrorData> {
+        let repo = load_package(params.package_dir).map_err(tool_error)?;
+        let kind = params
+            .kind
+            .as_deref()
+            .map(parse_run_kind)
+            .transpose()
+            .map_err(invalid_params)?;
+        let status = params
+            .status
+            .as_deref()
+            .map(parse_run_status)
+            .transpose()
+            .map_err(invalid_params)?;
+        let input = crate::core::RunListInput {
+            kind,
+            status,
+            since: params.since,
+            limit: params.limit,
+            predicates: params.r#where.unwrap_or_default(),
+        };
+        crate::core::run_list_envelope(&repo, &input)
+            .map(Json)
+            .map_err(tool_error)
+    }
+
+    #[tool(
+        name = "run_get",
+        description = "Get a single persisted run record by id"
+    )]
+    async fn run_get(
+        &self,
+        Parameters(params): Parameters<RunGetParams>,
+    ) -> Result<Json<crate::datastore::RunRecord>, ErrorData> {
+        let repo = load_package(params.package_dir).map_err(tool_error)?;
+        match crate::core::get_run(&repo, &params.id).map_err(tool_error)? {
+            Some(run) => Ok(Json(run)),
+            None => Err(ErrorData::invalid_params(
+                format!("run '{}' was not found in the datastore", params.id),
+                None,
+            )),
+        }
+    }
+
+    #[tool(
+        name = "artifact_list",
+        description = "List artifacts persisted in the datastore. Filter by run id, name, capability, tags, age, and equality predicates over record paths (e.g. tags.env=prod)."
+    )]
+    async fn artifact_list(
+        &self,
+        Parameters(params): Parameters<ArtifactListParams>,
+    ) -> Result<Json<crate::query::ListEnvelope<crate::datastore::ArtifactRecord>>, ErrorData> {
+        let repo = load_package(params.package_dir).map_err(tool_error)?;
+        let input = crate::core::ArtifactListInput {
+            run: params.run,
+            name: params.name,
+            capability: params.capability,
+            tags: params.tags.unwrap_or_default(),
+            since: params.since,
+            limit: params.limit,
+            predicates: params.r#where.unwrap_or_default(),
+        };
+        crate::core::artifact_list_envelope(&repo, &input)
+            .map(Json)
+            .map_err(tool_error)
+    }
+
+    #[tool(
+        name = "artifact_get",
+        description = "Get a single artifact record by id"
+    )]
+    async fn artifact_get(
+        &self,
+        Parameters(params): Parameters<ArtifactGetParams>,
+    ) -> Result<Json<crate::datastore::ArtifactRecord>, ErrorData> {
+        let repo = load_package(params.package_dir).map_err(tool_error)?;
+        match crate::core::get_artifact(&repo, &params.id).map_err(tool_error)? {
+            Some(artifact) => Ok(Json(artifact)),
+            None => Err(ErrorData::invalid_params(
+                format!("artifact '{}' was not found in the datastore", params.id),
+                None,
+            )),
+        }
+    }
+}
+
+fn invalid_params(message: String) -> ErrorData {
+    ErrorData::invalid_params(message, None)
+}
+
+fn parse_run_kind(value: &str) -> Result<crate::datastore::RunKind, String> {
+    match value {
+        "action" => Ok(crate::datastore::RunKind::Action),
+        "workflow" => Ok(crate::datastore::RunKind::Workflow),
+        other => Err(format!(
+            "invalid run kind '{other}', expected 'action' or 'workflow'"
+        )),
+    }
+}
+
+fn parse_run_status(value: &str) -> Result<crate::datastore::RunStatus, String> {
+    match value {
+        "planned" => Ok(crate::datastore::RunStatus::Planned),
+        "running" => Ok(crate::datastore::RunStatus::Running),
+        "succeeded" => Ok(crate::datastore::RunStatus::Succeeded),
+        "failed" => Ok(crate::datastore::RunStatus::Failed),
+        other => Err(format!(
+            "invalid run status '{other}', expected planned|running|succeeded|failed"
+        )),
     }
 }
 

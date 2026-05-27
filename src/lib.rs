@@ -1,8 +1,13 @@
 pub mod cli;
+pub mod config;
 pub mod core;
+pub mod datastore;
 pub mod domain;
+pub mod execution;
 pub mod mcp;
 pub mod output;
+pub mod query;
 pub mod registry;
 pub mod scaffold;
 pub mod store;
+pub mod template;

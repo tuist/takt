@@ -1,7 +1,14 @@
-use crate::domain::{
-    API_VERSION, ActionDefinition, CapabilityDefinition, HandlerDefinition, LockedPackage,
-    PackageJsonManifest, PackageManifest, TaktLockfile, WorkflowDefinition,
+use crate::datastore::{
+    ArtifactRecord, ListArtifactsQuery, ListRunsQuery, RunKind, RunMode, RunRecord, RunSource,
+    RunStatus, open_repo_datastore,
 };
+use crate::domain::{
+    API_VERSION, ActionDefinition, CapabilityDefinition, DEFAULT_RUNTIME_NAME, HandlerDefinition,
+    LockedPackage, NetworkPolicy, PackageJsonManifest, PackageManifest, RuntimeProfile,
+    SANDBOX_PROCESS, TaktLockfile, WorkflowDefinition,
+};
+use crate::execution::{ExecutionInput, execute_node_handler};
+use crate::query::{new_run_id, now_unix_ms};
 use crate::registry::{
     RegistryConfig, auth_token_for_url, fetch_registry_package_document, load_registry_config,
     select_dependency_version,
@@ -29,7 +36,6 @@ use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use std::time::{SystemTime, UNIX_EPOCH};
 use tar::{Builder, Header};
 
 pub const CONCEPT_CHAIN: &str = "package -> capability -> action -> workflow -> run -> artifact";
@@ -124,6 +130,9 @@ pub enum SchemaTarget {
     Capability,
     Action,
     Workflow,
+    Run,
+    Artifact,
+    Config,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, JsonSchema, ValueEnum, PartialEq, Eq)]
@@ -148,6 +157,9 @@ pub struct SchemaBundle {
     pub capability: Schema,
     pub action: Schema,
     pub workflow: Schema,
+    pub run: Schema,
+    pub artifact: Schema,
+    pub config: Schema,
 }
 
 pub fn schema_bundle() -> SchemaBundle {
@@ -156,6 +168,9 @@ pub fn schema_bundle() -> SchemaBundle {
         capability: schema_for!(CapabilityDefinition),
         action: schema_for!(ActionDefinition),
         workflow: schema_for!(WorkflowDefinition),
+        run: schema_for!(RunRecord),
+        artifact: schema_for!(ArtifactRecord),
+        config: schema_for!(crate::config::RepoConfig),
     }
 }
 
@@ -173,6 +188,14 @@ pub fn schema_for_target(target: SchemaTarget) -> Value {
         SchemaTarget::Workflow => {
             serde_json::to_value(schema_for!(WorkflowDefinition)).expect("workflow schema is valid")
         }
+        SchemaTarget::Run => {
+            serde_json::to_value(schema_for!(RunRecord)).expect("run schema is valid")
+        }
+        SchemaTarget::Artifact => {
+            serde_json::to_value(schema_for!(ArtifactRecord)).expect("artifact schema is valid")
+        }
+        SchemaTarget::Config => serde_json::to_value(schema_for!(crate::config::RepoConfig))
+            .expect("config schema is valid"),
     }
 }
 
@@ -861,18 +884,6 @@ pub fn validate_all(repo: &Repository) -> Result<ValidationSummary> {
 }
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]
-#[serde(rename_all = "kebab-case")]
-pub enum RunStatus {
-    Planned,
-}
-
-#[derive(Debug, Clone, Serialize, JsonSchema)]
-#[serde(rename_all = "kebab-case")]
-pub enum RunMode {
-    PlanOnly,
-}
-
-#[derive(Debug, Clone, Serialize, JsonSchema)]
 #[serde(tag = "mode", rename_all = "kebab-case")]
 pub enum CapabilityResolution {
     Local {
@@ -890,6 +901,7 @@ pub enum CapabilityResolution {
         capability: String,
         node: String,
         handler: HandlerDefinition,
+        runtime: RuntimeProfile,
         manifest_path: PathBuf,
         store_path: PathBuf,
     },
@@ -932,13 +944,18 @@ pub struct ActionRunRecord {
     pub status: RunStatus,
     pub mode: RunMode,
     pub planned_at_unix_ms: u64,
-    pub repo_root: PathBuf,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub state_path: Option<PathBuf>,
+    pub finished_at_unix_ms: Option<u64>,
+    pub repo_root: PathBuf,
+    pub persisted: bool,
     pub message: String,
     pub inputs: BTreeMap<String, Value>,
     pub validation: ValidationReport,
     pub action: ActionRunTarget,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub output: Option<Value>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub artifact_ids: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]
@@ -970,13 +987,18 @@ pub struct WorkflowRunRecord {
     pub status: RunStatus,
     pub mode: RunMode,
     pub planned_at_unix_ms: u64,
-    pub repo_root: PathBuf,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub state_path: Option<PathBuf>,
+    pub finished_at_unix_ms: Option<u64>,
+    pub repo_root: PathBuf,
+    pub persisted: bool,
     pub message: String,
     pub inputs: BTreeMap<String, Value>,
     pub validation: ValidationReport,
     pub workflow: WorkflowRunTarget,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub child_run_ids: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub output: Option<Value>,
 }
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]
@@ -1000,11 +1022,136 @@ pub fn parse_input_assignments(assignments: &[String]) -> Result<BTreeMap<String
     Ok(inputs)
 }
 
+pub fn list_runs(repo: &Repository, query: &ListRunsQuery) -> Result<Vec<RunRecord>> {
+    let (_loaded, provider) = open_repo_datastore(&repo.root)?;
+    provider.list_runs(query)
+}
+
+pub fn get_run(repo: &Repository, id: &str) -> Result<Option<RunRecord>> {
+    let (_loaded, provider) = open_repo_datastore(&repo.root)?;
+    provider.get_run(id)
+}
+
+pub fn list_artifacts(
+    repo: &Repository,
+    query: &ListArtifactsQuery,
+) -> Result<Vec<ArtifactRecord>> {
+    let (_loaded, provider) = open_repo_datastore(&repo.root)?;
+    provider.list_artifacts(query)
+}
+
+pub fn get_artifact(repo: &Repository, id: &str) -> Result<Option<ArtifactRecord>> {
+    let (_loaded, provider) = open_repo_datastore(&repo.root)?;
+    provider.get_artifact(id)
+}
+
+#[derive(Debug, Default)]
+pub struct RunListInput {
+    pub kind: Option<RunKind>,
+    pub status: Option<RunStatus>,
+    pub since: Option<String>,
+    pub limit: Option<usize>,
+    /// Raw "path=value" strings; parsed and applied as AND-joined equality
+    /// predicates against `RunRecord::lookup_path`.
+    pub predicates: Vec<String>,
+}
+
+pub fn run_list_envelope(
+    repo: &Repository,
+    input: &RunListInput,
+) -> Result<crate::query::ListEnvelope<RunRecord>> {
+    let predicates: Vec<crate::query::Predicate> = input
+        .predicates
+        .iter()
+        .map(|raw| crate::query::parse_predicate(raw))
+        .collect::<Result<_>>()?;
+
+    let query = ListRunsQuery {
+        kind: input.kind,
+        status: input.status,
+        since_unix_ms: input
+            .since
+            .as_deref()
+            .map(crate::query::since_threshold_unix_ms)
+            .transpose()?,
+    };
+    let mut results = list_runs(repo, &query)?;
+    if !predicates.is_empty() {
+        results.retain(|run| {
+            predicates.iter().all(|predicate| {
+                run.lookup_path(&predicate.path)
+                    .is_some_and(|actual| actual == predicate.value)
+            })
+        });
+    }
+    let total = results.len();
+    if let Some(limit) = input.limit {
+        results.truncate(limit);
+    }
+    Ok(crate::query::ListEnvelope::new("run list", total, results))
+}
+
+#[derive(Debug, Default)]
+pub struct ArtifactListInput {
+    pub run: Option<String>,
+    pub name: Option<String>,
+    pub capability: Option<String>,
+    pub tags: BTreeMap<String, String>,
+    pub since: Option<String>,
+    pub limit: Option<usize>,
+    /// Raw "path=value" strings; parsed and applied as AND-joined equality.
+    pub predicates: Vec<String>,
+}
+
+pub fn artifact_list_envelope(
+    repo: &Repository,
+    input: &ArtifactListInput,
+) -> Result<crate::query::ListEnvelope<ArtifactRecord>> {
+    let predicates: Vec<crate::query::Predicate> = input
+        .predicates
+        .iter()
+        .map(|raw| crate::query::parse_predicate(raw))
+        .collect::<Result<_>>()?;
+
+    let query = ListArtifactsQuery {
+        run_id: input.run.clone(),
+        name: input.name.clone(),
+        capability: input.capability.clone(),
+        tags: input.tags.clone(),
+        since_unix_ms: input
+            .since
+            .as_deref()
+            .map(crate::query::since_threshold_unix_ms)
+            .transpose()?,
+    };
+
+    let mut results = list_artifacts(repo, &query)?;
+    if !predicates.is_empty() {
+        results.retain(|artifact| {
+            predicates.iter().all(|predicate| {
+                artifact
+                    .lookup_path(&predicate.path)
+                    .is_some_and(|actual| actual == predicate.value)
+            })
+        });
+    }
+    let total = results.len();
+    if let Some(limit) = input.limit {
+        results.truncate(limit);
+    }
+    Ok(crate::query::ListEnvelope::new(
+        "artifact list",
+        total,
+        results,
+    ))
+}
+
 pub fn plan_action_run(
     repo: &Repository,
     selector: &str,
     inputs: BTreeMap<String, Value>,
     persist: bool,
+    source: RunSource,
 ) -> Result<ActionRunOutput> {
     let document = load_action(repo, selector)?;
     let validation = validate_action_document(repo, &document);
@@ -1020,34 +1167,239 @@ pub fn plan_action_run(
         );
     }
 
-    let planned_at_unix_ms = now_unix_ms()?;
-    let id = format!("run-{planned_at_unix_ms}");
-    let mut record = ActionRunRecord {
-        id: id.clone(),
-        status: RunStatus::Planned,
-        mode: RunMode::PlanOnly,
-        planned_at_unix_ms,
-        repo_root: repo.root.clone(),
-        state_path: None,
-        message: "Execution is not implemented yet; Takt persisted a planned run only.".into(),
-        inputs,
-        validation,
-        action: ActionRunTarget {
-            name: document.action.name,
-            path: document.path,
-            capability: document.action.capability,
-            resolution,
-        },
-    };
+    let (id, planned_at_unix_ms) = new_run_id()?;
 
     if persist {
-        let state_path = persist_run_record(&repo.root, &id, &record)?;
-        record.state_path = Some(state_path);
+        let (_loaded, provider) = open_repo_datastore(&repo.root)?;
+        let run_record = RunRecord {
+            id: id.clone(),
+            kind: RunKind::Action,
+            status: RunStatus::Planned,
+            mode: RunMode::PlanOnly,
+            source: source.clone(),
+            started_at_unix_ms: planned_at_unix_ms,
+            finished_at_unix_ms: None,
+            repo_root: repo.root.clone(),
+            inputs: inputs.clone(),
+            target_name: document.action.name.clone(),
+            target_path: document.path.clone(),
+            artifact_ids: Vec::new(),
+            child_run_ids: Vec::new(),
+            output: None,
+            error_message: None,
+        };
+        provider.put_run(&run_record)?;
     }
 
     Ok(ActionRunOutput {
         command: "run action",
-        run: record,
+        run: ActionRunRecord {
+            id,
+            status: RunStatus::Planned,
+            mode: RunMode::PlanOnly,
+            planned_at_unix_ms,
+            finished_at_unix_ms: None,
+            repo_root: repo.root.clone(),
+            persisted: persist,
+            message: "Plan-only mode: Takt validated and resolved the action without invoking the handler.".into(),
+            inputs,
+            validation,
+            action: ActionRunTarget {
+                name: document.action.name,
+                path: document.path,
+                capability: document.action.capability,
+                resolution,
+            },
+            output: None,
+            artifact_ids: Vec::new(),
+        },
+    })
+}
+
+pub fn execute_action_run(
+    repo: &Repository,
+    selector: &str,
+    inputs: BTreeMap<String, Value>,
+    persist: bool,
+    source: RunSource,
+) -> Result<ActionRunOutput> {
+    let document = load_action(repo, selector)?;
+    let validation = validate_action_document(repo, &document);
+    if !validation.passed {
+        bail!("action '{}' failed validation", document.action.name);
+    }
+
+    let resolution = resolve_capability_reference(repo, &document.action.capability);
+    let (handler, capability_name, runtime) = match &resolution {
+        CapabilityResolution::Local {
+            handler,
+            capability,
+            ..
+        } => (
+            handler.clone(),
+            capability.clone(),
+            resolve_runtime_profile(&repo.package, capability)?,
+        ),
+        CapabilityResolution::InstalledExternal {
+            handler,
+            capability,
+            runtime,
+            ..
+        } => (handler.clone(), capability.clone(), runtime.clone()),
+        CapabilityResolution::MissingLocal { reference } => {
+            bail!("cannot execute unresolved local capability '{reference}'")
+        }
+        CapabilityResolution::Invalid { reason, .. } => {
+            bail!("cannot execute invalid capability reference: {reason}")
+        }
+        CapabilityResolution::MissingDependency { package, .. } => bail!(
+            "cannot execute external dependency '{}': add it to {} and run `takt install`",
+            package,
+            PACKAGE_JSON_FILENAME
+        ),
+        CapabilityResolution::UninstalledDependency {
+            package, specifier, ..
+        } => bail!(
+            "cannot execute external dependency '{}' declared as '{}': run `takt install`",
+            package,
+            specifier
+        ),
+        CapabilityResolution::MissingExternalCapability {
+            package,
+            version,
+            capability,
+            ..
+        } => bail!(
+            "cannot execute external capability '{}#{}': installed version '{}' does not export it",
+            package,
+            capability,
+            version
+        ),
+    };
+
+    let mut merged_inputs = document.action.with.clone();
+    for (key, value) in &inputs {
+        merged_inputs.insert(key.clone(), value.clone());
+    }
+
+    let (id, planned_at_unix_ms) = new_run_id()?;
+
+    let (loaded_config, provider) = if persist {
+        let pair = open_repo_datastore(&repo.root)?;
+        (Some(pair.0), Some(pair.1))
+    } else {
+        (None, None)
+    };
+    let _ = loaded_config;
+
+    let base_record = RunRecord {
+        id: id.clone(),
+        kind: RunKind::Action,
+        status: RunStatus::Running,
+        mode: RunMode::Execute,
+        source: source.clone(),
+        started_at_unix_ms: planned_at_unix_ms,
+        finished_at_unix_ms: None,
+        repo_root: repo.root.clone(),
+        inputs: merged_inputs.clone(),
+        target_name: document.action.name.clone(),
+        target_path: document.path.clone(),
+        artifact_ids: Vec::new(),
+        child_run_ids: Vec::new(),
+        output: None,
+        error_message: None,
+    };
+
+    if let Some(provider) = provider.as_ref() {
+        provider.put_run(&base_record)?;
+    }
+
+    let scratch_root = repo
+        .root
+        .join(".takt")
+        .join("datastore")
+        .join("runs-scratch");
+    let blobs_root = repo.root.join(".takt").join("datastore").join("blobs");
+    let execution_input = ExecutionInput {
+        run_id: id.clone(),
+        capability: capability_name.clone(),
+        handler_entrypoint: PathBuf::from(handler.entrypoint),
+        package_root: repo.root.clone(),
+        inputs: merged_inputs.clone(),
+        blobs_root,
+        scratch_root,
+        runtime,
+    };
+
+    let execution_result = execute_node_handler(execution_input);
+
+    let finished_at_unix_ms = now_unix_ms()?;
+    let (status, output, artifact_records, error_message, message) = match execution_result {
+        Ok(outcome) => {
+            let message = format!(
+                "Handler '{}' completed successfully and emitted {} artifact(s).",
+                capability_name,
+                outcome.artifacts.len()
+            );
+            (
+                RunStatus::Succeeded,
+                outcome.output,
+                outcome.artifacts,
+                None,
+                message,
+            )
+        }
+        Err(error) => {
+            let text = format!("{error:#}");
+            (
+                RunStatus::Failed,
+                None,
+                Vec::new(),
+                Some(text.clone()),
+                format!("Handler '{capability_name}' failed: {text}"),
+            )
+        }
+    };
+
+    let artifact_ids: Vec<String> = artifact_records.iter().map(|a| a.id.clone()).collect();
+
+    if let Some(provider) = provider.as_ref() {
+        for artifact in &artifact_records {
+            provider.put_artifact(artifact)?;
+        }
+        let final_record = RunRecord {
+            status,
+            finished_at_unix_ms: Some(finished_at_unix_ms),
+            artifact_ids: artifact_ids.clone(),
+            output: output.clone(),
+            error_message: error_message.clone(),
+            ..base_record
+        };
+        provider.put_run(&final_record)?;
+    }
+
+    Ok(ActionRunOutput {
+        command: "run action",
+        run: ActionRunRecord {
+            id,
+            status,
+            mode: RunMode::Execute,
+            planned_at_unix_ms,
+            finished_at_unix_ms: Some(finished_at_unix_ms),
+            repo_root: repo.root.clone(),
+            persisted: persist,
+            message,
+            inputs: merged_inputs,
+            validation,
+            action: ActionRunTarget {
+                name: document.action.name,
+                path: document.path,
+                capability: document.action.capability,
+                resolution,
+            },
+            output,
+            artifact_ids,
+        },
     })
 }
 
@@ -1056,6 +1408,7 @@ pub fn plan_workflow_run(
     selector: &str,
     inputs: BTreeMap<String, Value>,
     persist: bool,
+    source: RunSource,
 ) -> Result<WorkflowRunOutput> {
     let document = load_workflow(repo, selector)?;
     let validation = validate_workflow_document(repo, &document);
@@ -1093,33 +1446,248 @@ pub fn plan_workflow_run(
         });
     }
 
-    let planned_at_unix_ms = now_unix_ms()?;
-    let id = format!("run-{planned_at_unix_ms}");
-    let mut record = WorkflowRunRecord {
-        id: id.clone(),
-        status: RunStatus::Planned,
-        mode: RunMode::PlanOnly,
-        planned_at_unix_ms,
-        repo_root: repo.root.clone(),
-        state_path: None,
-        message: "Execution is not implemented yet; Takt persisted a planned run only.".into(),
-        inputs,
-        validation,
-        workflow: WorkflowRunTarget {
-            name: document.workflow.name,
-            path: document.path,
-            steps,
-        },
-    };
+    let (id, planned_at_unix_ms) = new_run_id()?;
 
     if persist {
-        let state_path = persist_run_record(&repo.root, &id, &record)?;
-        record.state_path = Some(state_path);
+        let (_loaded, provider) = open_repo_datastore(&repo.root)?;
+        let run_record = RunRecord {
+            id: id.clone(),
+            kind: RunKind::Workflow,
+            status: RunStatus::Planned,
+            mode: RunMode::PlanOnly,
+            source: source.clone(),
+            started_at_unix_ms: planned_at_unix_ms,
+            finished_at_unix_ms: None,
+            repo_root: repo.root.clone(),
+            inputs: inputs.clone(),
+            target_name: document.workflow.name.clone(),
+            target_path: document.path.clone(),
+            artifact_ids: Vec::new(),
+            child_run_ids: Vec::new(),
+            output: None,
+            error_message: None,
+        };
+        provider.put_run(&run_record)?;
     }
 
     Ok(WorkflowRunOutput {
         command: "run workflow",
-        run: record,
+        run: WorkflowRunRecord {
+            id,
+            status: RunStatus::Planned,
+            mode: RunMode::PlanOnly,
+            planned_at_unix_ms,
+            finished_at_unix_ms: None,
+            repo_root: repo.root.clone(),
+            persisted: persist,
+            message: "Plan-only mode: Takt validated and resolved the workflow without invoking any handler.".into(),
+            inputs,
+            validation,
+            workflow: WorkflowRunTarget {
+                name: document.workflow.name,
+                path: document.path,
+                steps,
+            },
+            child_run_ids: Vec::new(),
+            output: None,
+        },
+    })
+}
+
+pub fn execute_workflow_run(
+    repo: &Repository,
+    selector: &str,
+    inputs: BTreeMap<String, Value>,
+    persist: bool,
+    source: RunSource,
+) -> Result<WorkflowRunOutput> {
+    let document = load_workflow(repo, selector)?;
+    let validation = validate_workflow_document(repo, &document);
+    if !validation.passed {
+        bail!("workflow '{}' failed validation", document.workflow.name);
+    }
+
+    for step in &document.workflow.steps {
+        if step.foreach.is_some() {
+            bail!(
+                "workflow step '{}' uses `foreach` which is not implemented yet",
+                step.name
+            );
+        }
+        if step.if_expression.is_some() {
+            bail!(
+                "workflow step '{}' uses `if` which is not implemented yet",
+                step.name
+            );
+        }
+    }
+
+    let ordered_steps = topological_step_order(&document.workflow)?;
+
+    // Build the resolved step targets up front so the response carries the same
+    // metadata that plan_workflow_run would return.
+    let mut step_targets = Vec::with_capacity(document.workflow.steps.len());
+    for step in &document.workflow.steps {
+        let action_document = load_action(repo, &step.uses)?;
+        let resolution = resolve_capability_reference(repo, &action_document.action.capability);
+        step_targets.push(WorkflowStepRunTarget {
+            name: step.name.clone(),
+            action: action_document.action.name.clone(),
+            action_path: action_document.path.clone(),
+            capability: action_document.action.capability.clone(),
+            resolution,
+            needs: step.needs.clone(),
+        });
+    }
+
+    let (workflow_run_id, planned_at_unix_ms) = new_run_id()?;
+
+    let (_loaded, provider) = if persist {
+        let pair = open_repo_datastore(&repo.root)?;
+        (Some(pair.0), Some(pair.1))
+    } else {
+        (None, None)
+    };
+
+    let base_record = RunRecord {
+        id: workflow_run_id.clone(),
+        kind: RunKind::Workflow,
+        status: RunStatus::Running,
+        mode: RunMode::Execute,
+        source: source.clone(),
+        started_at_unix_ms: planned_at_unix_ms,
+        finished_at_unix_ms: None,
+        repo_root: repo.root.clone(),
+        inputs: inputs.clone(),
+        target_name: document.workflow.name.clone(),
+        target_path: document.path.clone(),
+        artifact_ids: Vec::new(),
+        child_run_ids: Vec::new(),
+        output: None,
+        error_message: None,
+    };
+    if let Some(provider) = provider.as_ref() {
+        provider.put_run(&base_record)?;
+    }
+
+    let mut child_run_ids: Vec<String> = Vec::new();
+    let mut overall_status = RunStatus::Succeeded;
+    let mut error_message: Option<String> = None;
+    let mut message = format!(
+        "Workflow '{}' completed all {} step(s).",
+        document.workflow.name,
+        ordered_steps.len()
+    );
+
+    let mut template_ctx = crate::template::TemplateContext {
+        workflow_inputs: inputs.clone(),
+        ..crate::template::TemplateContext::default()
+    };
+
+    for step in &ordered_steps {
+        let expanded_with = match crate::template::expand_inputs(&step.with, &template_ctx) {
+            Ok(map) => map,
+            Err(error) => {
+                overall_status = RunStatus::Failed;
+                let text = format!("{error:#}");
+                error_message = Some(format!(
+                    "step '{}' failed during template expansion: {}",
+                    step.name, text
+                ));
+                message = format!(
+                    "Workflow '{}' stopped because step '{}' had an invalid template expression.",
+                    document.workflow.name, step.name
+                );
+                break;
+            }
+        };
+
+        let mut step_inputs = inputs.clone();
+        for (key, value) in expanded_with {
+            step_inputs.insert(key, value);
+        }
+
+        let step_source = RunSource::Workflow {
+            workflow_run_id: workflow_run_id.clone(),
+            step_name: step.name.clone(),
+        };
+
+        let action_result = execute_action_run(repo, &step.uses, step_inputs, persist, step_source);
+        match action_result {
+            Ok(action_output) => {
+                child_run_ids.push(action_output.run.id.clone());
+                template_ctx.record_step(
+                    &step.name,
+                    action_output.run.id.clone(),
+                    action_output.run.output.clone(),
+                );
+                if action_output.run.status == RunStatus::Failed {
+                    overall_status = RunStatus::Failed;
+                    error_message = Some(format!(
+                        "step '{}' failed: {}",
+                        step.name, action_output.run.message
+                    ));
+                    message = format!(
+                        "Workflow '{}' stopped after step '{}' failed.",
+                        document.workflow.name, step.name
+                    );
+                    break;
+                }
+            }
+            Err(error) => {
+                overall_status = RunStatus::Failed;
+                let text = format!("{error:#}");
+                error_message = Some(format!("step '{}' errored: {}", step.name, text));
+                message = format!(
+                    "Workflow '{}' stopped because step '{}' errored.",
+                    document.workflow.name, step.name
+                );
+                break;
+            }
+        }
+    }
+    let step_outputs: BTreeMap<String, Value> = template_ctx.step_outputs.into_iter().collect();
+
+    let finished_at_unix_ms = now_unix_ms()?;
+    let output_value = if step_outputs.is_empty() {
+        None
+    } else {
+        Some(Value::Object(step_outputs.into_iter().collect()))
+    };
+
+    if let Some(provider) = provider.as_ref() {
+        let final_record = RunRecord {
+            status: overall_status,
+            finished_at_unix_ms: Some(finished_at_unix_ms),
+            child_run_ids: child_run_ids.clone(),
+            output: output_value.clone(),
+            error_message: error_message.clone(),
+            ..base_record
+        };
+        provider.put_run(&final_record)?;
+    }
+
+    Ok(WorkflowRunOutput {
+        command: "run workflow",
+        run: WorkflowRunRecord {
+            id: workflow_run_id,
+            status: overall_status,
+            mode: RunMode::Execute,
+            planned_at_unix_ms,
+            finished_at_unix_ms: Some(finished_at_unix_ms),
+            repo_root: repo.root.clone(),
+            persisted: persist,
+            message,
+            inputs,
+            validation,
+            workflow: WorkflowRunTarget {
+                name: document.workflow.name,
+                path: document.path,
+                steps: step_targets,
+            },
+            child_run_ids,
+            output: output_value,
+        },
     })
 }
 
@@ -1707,6 +2275,77 @@ fn workflow_has_cycle(workflow: &WorkflowDefinition) -> bool {
         .any(|step| visit(&step.name, workflow, &mut visiting, &mut visited))
 }
 
+fn topological_step_order(
+    workflow: &WorkflowDefinition,
+) -> Result<Vec<crate::domain::WorkflowStep>> {
+    use std::collections::BTreeSet;
+
+    if workflow_has_cycle(workflow) {
+        bail!("workflow steps contain a cycle and cannot be executed");
+    }
+
+    let mut visited: BTreeSet<String> = BTreeSet::new();
+    let mut ordered: Vec<crate::domain::WorkflowStep> = Vec::with_capacity(workflow.steps.len());
+
+    fn visit(
+        name: &str,
+        workflow: &WorkflowDefinition,
+        visited: &mut BTreeSet<String>,
+        ordered: &mut Vec<crate::domain::WorkflowStep>,
+    ) -> Result<()> {
+        if visited.contains(name) {
+            return Ok(());
+        }
+        let step = workflow
+            .steps
+            .iter()
+            .find(|s| s.name == name)
+            .ok_or_else(|| eyre!("workflow references missing step '{}'", name))?;
+        for dependency in &step.needs {
+            visit(dependency, workflow, visited, ordered)?;
+        }
+        if visited.insert(name.to_string()) {
+            ordered.push(step.clone());
+        }
+        Ok(())
+    }
+
+    for step in &workflow.steps {
+        visit(&step.name, workflow, &mut visited, &mut ordered)?;
+    }
+    Ok(ordered)
+}
+
+fn resolve_runtime_profile(
+    package: &PackageManifest,
+    capability_name: &str,
+) -> Result<RuntimeProfile> {
+    let capability = package.capabilities.get(capability_name);
+    let runtime_name = capability
+        .and_then(|cap| cap.runtime.as_deref())
+        .unwrap_or(DEFAULT_RUNTIME_NAME);
+
+    if let Some(profile) = package.runtimes.get(runtime_name) {
+        return Ok(profile.clone());
+    }
+
+    if runtime_name == DEFAULT_RUNTIME_NAME {
+        return Ok(RuntimeProfile {
+            sandbox: SANDBOX_PROCESS.into(),
+            image: None,
+            cpus: None,
+            memory_mb: None,
+            network: NetworkPolicy::default(),
+        });
+    }
+
+    bail!(
+        "capability '{}' references runtime profile '{}' but it is not declared in the package's `runtimes` table",
+        capability_name,
+        runtime_name
+    )
+}
+
 fn resolve_capability_reference(repo: &Repository, reference: &str) -> CapabilityResolution {
     if let Some((package, capability)) = reference.split_once('#') {
         if package.trim().is_empty() || capability.trim().is_empty() {
@@ -1751,7 +2390,6 @@ fn resolve_capability_reference(repo: &Repository, reference: &str) -> Capabilit
             reference: reference.into(),
         })
 }
-
 fn resolve_external_capability(
     repo: &Repository,
     reference: &str,
@@ -1813,27 +2451,41 @@ fn resolve_external_capability(
         };
     };
 
-    package_manifest
-        .capabilities
-        .get(capability)
-        .map(|definition| CapabilityResolution::InstalledExternal {
-            reference: reference.into(),
-            package: package.into(),
-            specifier: specifier.clone(),
-            version: locked_package.version.clone(),
-            capability: capability.into(),
-            node: package_manifest.node.clone(),
-            handler: definition.handler.clone(),
-            manifest_path: manifest_path.clone(),
-            store_path: store_path.clone(),
-        })
-        .unwrap_or_else(|| CapabilityResolution::MissingExternalCapability {
+    let Some(definition) = package_manifest.capabilities.get(capability) else {
+        return CapabilityResolution::MissingExternalCapability {
             reference: reference.into(),
             package: package.into(),
             version: locked_package.version.clone(),
             capability: capability.into(),
             manifest_path,
-        })
+        };
+    };
+
+    let runtime = match resolve_runtime_profile(&package_manifest, capability) {
+        Ok(runtime) => runtime,
+        Err(error) => {
+            return CapabilityResolution::Invalid {
+                reference: reference.into(),
+                reason: format!(
+                    "installed dependency '{}' has an invalid runtime for '{}': {error}",
+                    package, capability
+                ),
+            };
+        }
+    };
+
+    CapabilityResolution::InstalledExternal {
+        reference: reference.into(),
+        package: package.into(),
+        specifier: specifier.clone(),
+        version: locked_package.version.clone(),
+        capability: capability.into(),
+        node: package_manifest.node.clone(),
+        handler: definition.handler.clone(),
+        runtime,
+        manifest_path: manifest_path.clone(),
+        store_path: store_path.clone(),
+    }
 }
 
 fn capability_resolution_error(resolution: &CapabilityResolution) -> Option<String> {
@@ -1865,28 +2517,6 @@ fn capability_resolution_error(resolution: &CapabilityResolution) -> Option<Stri
     }
 }
 
-fn persist_run_record<T>(repo_root: &Path, run_id: &str, record: &T) -> Result<PathBuf>
-where
-    T: Serialize,
-{
-    let path = repo_root
-        .join(".takt")
-        .join("runs")
-        .join(format!("{run_id}.json"));
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)?;
-    }
-    fs::write(&path, serde_json::to_string_pretty(record)?)?;
-    Ok(path)
-}
-
-fn now_unix_ms() -> Result<u64> {
-    let duration = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map_err(|error| eyre!("system clock is before UNIX_EPOCH: {error}"))?;
-    Ok(duration.as_millis() as u64)
-}
-
 #[cfg(test)]
 mod tests {
     use super::{
@@ -1895,6 +2525,7 @@ mod tests {
         validate_action_document, write_json_value,
     };
     use crate::core::plan_action_run;
+    use crate::datastore::RunSource;
     use crate::domain::{
         ActionDefinition, CapabilityDefinition, HandlerDefinition, LockedPackage,
         PackageJsonManifest, PackageManifest, SchemaReference,
@@ -1957,6 +2588,8 @@ mod tests {
                         description: None,
                     },
                     permissions: Default::default(),
+                    artifacts: BTreeMap::new(),
+                    runtime: None,
                 },
             )]),
             ..PackageManifest::starter("@acme/dep".into(), Some("Dependency".into()))
@@ -2002,7 +2635,7 @@ mod tests {
         let validation = validate_action_document(&repo, &action);
         assert!(validation.passed, "{validation:?}");
 
-        let output = plan_action_run(&repo, "echo", BTreeMap::new(), false)?;
+        let output = plan_action_run(&repo, "echo", BTreeMap::new(), false, RunSource::Cli)?;
         match output.run.action.resolution {
             CapabilityResolution::InstalledExternal {
                 package,
